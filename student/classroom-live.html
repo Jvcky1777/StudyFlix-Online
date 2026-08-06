@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Room - Classroom Live</title>
+    <link rel="stylesheet" href="../src/css/global.css">
+  </head>
+  <body>
+    
+    <div class="classroom-container">
+      
+      <!-- MAIN VIDEO AREA -->
+      <div class="video-stage">
+        
+        <!-- Top Info Bar (Overlay) -->
+        <div style="position: absolute; top: 20px; left: 20px; z-index: 10;">
+            <button class="back-btn" onclick="window.location.href='./dashboard.html'" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8); margin-bottom: 10px;">
+                ← Back to Dashboard
+            </button>
+          
+            <!-- The Recording Tag and Title -->
+            <div style="display: flex; align-items: center;">
+                <div class="tag live">● REC</div>
+                <span style="margin-left: 10px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Java Web Apps & Multithreading</span>
+            </div>
+        
+        </div>
+
+        <!-- The Video Grid -->
+        <div class="video-grid" id="video-streams-container">
+          
+          <!-- Remote Feed (Instructor) -->
+          <div class="video-cell" style="border-color: var(--neon-cyan); box-shadow: var(--glow-cyan);">
+            <video id="remote-video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+            <div class="video-nameplate">Prof. Smith (Host)</div>
+          </div>
+
+          <!-- Local Feed (You) -->
+          <div class="video-cell">
+            <!-- Note: muted is important so you don't hear your own echo -->
+            <video id="local-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+            <div class="video-nameplate">Moses (You)</div>
+          </div>
+
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="control-bar">
+          <button class="control-btn" title="Toggle Microphone">🎤</button>
+          <button class="control-btn" title="Toggle Camera">📷</button>
+          <button class="control-btn" title="Share Screen">💻</button>
+          <button class="control-btn" title="Raise Hand">✋</button>
+          <button class="control-btn danger" title="Leave Classroom" onclick="window.location.href='./dashboard.html'">🚪</button>
+        </div>
+
+      </div>
+
+      <!-- SIDE CHAT & PARTICIPANTS -->
+      <div class="chat-sidebar">
+        <div class="chat-header">
+          <h3 class="glow-text" style="text-align: left; margin: 0; font-size: 1.2rem;">Class Chat</h3>
+        </div>
+        
+        <div class="chat-messages" id="chat-feed">
+          <!-- Mock Message -->
+          <div style="font-size: 0.9rem;">
+            <span style="color: var(--neon-purple); font-weight: bold;">Prof. Smith:</span> 
+            <span style="color: var(--text-main);">Welcome everyone. Please mute your mics.</span>
+          </div>
+          <!-- Mock Message -->
+          <div style="font-size: 0.9rem;">
+            <span style="color: var(--neon-cyan); font-weight: bold;">Moses:</span> 
+            <span style="color: var(--text-main);">Will this session be recorded?</span>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <form id="chat-form" style="flex-direction: row; gap: 0.5rem;" onsubmit="event.preventDefault();">
+            <input type="text" id="chat-input" placeholder="Type a message..." style="flex: 1; padding: 10px; font-size: 0.9rem;">
+            <button type="submit" style="width: auto; margin: 0; padding: 10px 15px;">Send</button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+
+    <script type="module">
+      import { startCamera, createClassroom, joinClassroom } from './js/video-stream.js';
+      
+      // Start the camera automatically when the page loads
+      document.addEventListener('DOMContentLoaded', async () => {
+        await startCamera();
+        
+        // For testing purposes later, you can bind these to buttons:
+        // document.getElementById('start-btn').onclick = () => createClassroom('test-room');
+        // document.getElementById('join-btn').onclick = () => joinClassroom('test-room');
+      });
+    </script>
+
+  </body>
+</html>
