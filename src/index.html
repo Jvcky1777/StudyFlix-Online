@@ -1,0 +1,70 @@
+<style>
+  /* 1. Full-screen screensaver overlay */
+  #screensaver {
+    position: fixed; 
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white; 
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer; 
+    z-index: 100;
+  }
+  
+  /* 2. Hidden by default */
+  .view-state { 
+    display: none; 
+    padding: 2rem; 
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  
+  /* 3. Class to reveal the active page */
+  .active-view { 
+    display: block; 
+  }
+</style>
+
+<!-- The Screen Saver -->
+<div id="screensaver" onclick="showAuthOptions()">
+  <h1>Classroom Live</h1>
+  <p>(Click anywhere to enter)</p>
+</div>
+
+<!-- The Choice Page -->
+<div id="auth-options" class="view-state">
+  <h2>Welcome</h2>
+  <button onclick="showView('signup-page')">Sign Up</button>
+  <button onclick="showView('signin-page')">Sign In</button>
+</div>
+
+<!-- The Sign Up Form -->
+<div id="signup-page" class="view-state">
+  <h2>Create Account</h2>
+  <form id="registerForm">
+    <input type="text" id="firstName" placeholder="First Name" required>
+    <input type="text" id="lastName" placeholder="Last Name" required>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <input type="tel" id="contactNumber" placeholder="Contact Number" required>
+    <input type="text" id="grade" placeholder="Grade (e.g., 12)" required>
+    <input type="text" id="preferredSubject" placeholder="Preferred Subject" required>
+    
+    <button type="button" onclick="handleSignUp(event)">Register</button>
+  </form>
+</div>
+
+<script>
+  // Simple UI routing to transition between screens
+  function showAuthOptions() {
+    document.getElementById('screensaver').style.display = 'none';
+    showView('auth-options');
+  }
+
+  function showView(viewId) {
+    // Hide all views first
+    document.querySelectorAll('.view-state').forEach(el => el.classList.remove('active-view'));
+    // Show the targeted view
+    document.getElementById(viewId).classList.add('active-view');
+  }
+</script>
