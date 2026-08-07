@@ -1,0 +1,285 @@
+
+/* =========================================
+   DASHBOARD LAYOUT (Separate Page)
+   ========================================= */
+.dashboard-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-base);
+}
+
+.sidebar {
+  width: 250px;
+  background: var(--bg-surface);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sidebar .nav-item {
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.sidebar .nav-item:hover, .sidebar .nav-item.active {
+  background: rgba(0, 243, 255, 0.1);
+  color: var(--neon-cyan);
+  border-left: 3px solid var(--neon-cyan);
+}
+
+.dashboard-main {
+  flex: 1;
+  padding: 3rem;
+  overflow-y: auto;
+  /* Subtle mesh background for the main content area */
+  background-image: radial-gradient(circle at top right, rgba(188, 19, 254, 0.05), transparent 40%),
+                    radial-gradient(circle at bottom left, rgba(0, 243, 255, 0.05), transparent 40%);
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.dash-card {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: transform 0.3s ease;
+}
+
+.dash-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--neon-purple);
+  box-shadow: var(--glow-purple);
+}
+
+
+/* =========================================
+   DASHBOARD ENHANCEMENTS (UI Polish)
+   ========================================= */
+
+/* Top Bar */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.search-bar {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 20px;
+  border-radius: 20px;
+  color: var(--text-main);
+  width: 350px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.search-bar:focus {
+  border-color: var(--neon-cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+/* Profile Chip */
+.profile-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 243, 255, 0.05);
+  padding: 6px 16px 6px 6px;
+  border-radius: 30px;
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.profile-chip:hover {
+  background: rgba(0, 243, 255, 0.1);
+  border-color: var(--neon-cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  background: var(--neon-cyan);
+  border-radius: 50%;
+  color: var(--bg-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+/* Quick Stats Row */
+.stats-row {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.stat-box {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Accent lines on the left of stat boxes */
+.stat-box::before {
+  content: '';
+  position: absolute;
+  top: 0; 
+  left: 0; 
+  width: 4px; 
+  height: 100%;
+  background: var(--neon-purple);
+  box-shadow: var(--glow-purple);
+}
+
+.stat-box:nth-child(2)::before {
+  background: var(--neon-cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.stat-box h3 {
+  font-size: 2.5rem;
+  margin-bottom: 5px;
+  color: var(--text-main);
+}
+
+.stat-box p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Status Tags for Cards */
+.tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 15px;
+  letter-spacing: 0.5px;
+}
+
+.tag.live {
+  background: rgba(188, 19, 254, 0.15);
+  color: var(--neon-purple);
+  border: 1px solid var(--neon-purple);
+  box-shadow: var(--glow-purple);
+  animation: pulseOpacity 2s infinite;
+}
+
+.tag.upcoming {
+  background: rgba(0, 243, 255, 0.1);
+  color: var(--neon-cyan);
+  border: 1px solid rgba(0, 243, 255, 0.5);
+}
+
+
+
+/* =========================================
+   INSTRUCTOR DASHBOARD (Command Center)
+   ========================================= */
+
+/* The Primary Action Panel (Go Live) */
+.action-panel {
+  background: linear-gradient(135deg, rgba(188, 19, 254, 0.2), rgba(0, 0, 0, 0.6));
+  border: 1px solid var(--neon-purple);
+  box-shadow: var(--glow-purple);
+  border-radius: 12px;
+  padding: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.action-panel h2 {
+  color: var(--text-main);
+  margin-bottom: 10px;
+}
+
+.action-panel p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  max-width: 500px;
+}
+
+.btn-large {
+  padding: 15px 30px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  background: var(--neon-purple);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 0 15px rgba(188, 19, 254, 0.4);
+  transition: all 0.3s ease;
+}
+
+.btn-large:hover {
+  background: #a010d9;
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(188, 19, 254, 0.6);
+}
+
+/* Schedule List View (Instead of bulky cards) */
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.schedule-item {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.2rem;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.schedule-item:hover {
+  border-color: var(--neon-cyan);
+  background: rgba(0, 243, 255, 0.05);
+}
+
+.schedule-info h4 {
+  color: var(--text-main);
+  margin-bottom: 5px;
+  font-size: 1.1rem;
+}
+
+.schedule-info p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
