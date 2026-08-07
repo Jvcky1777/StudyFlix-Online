@@ -7,6 +7,7 @@
     
     <!-- Link to the master theme -->
     <link rel="stylesheet" href="./src/css/global.css">
+    <link rel="stylesheet" href="./src/css/auth.css">
 
     <!-- Ensure these classes exist in your global.css, or keep them here -->
     <style>
@@ -42,9 +43,20 @@
         <input type="email" id="email" placeholder="Email" required>
         <input type="password" id="password" placeholder="Password" required>
         <input type="tel" id="contactNumber" placeholder="Contact Number" required>
-        <input type="text" id="grade" placeholder="Grade (e.g., 12)" required>
-        <input type="text" id="preferredSubject" placeholder="Preferred Subject" required>
-        
+        <select id="grade" required>
+            <option value="" disabled selected>Select Grade</option>
+            <option value="8">Grade 8</option>
+            <option value="9">Grade 9</option>
+            <option value="10">Grade 10</option>
+            <option value="11">Grade 11</option>
+            <option value="12">Grade 12</option>
+            <option value="university">University / Higher Ed</option>
+          </select>
+          <select id="role" required>
+            <option value="" disabled selected>Select Your Role</option>
+            <option value="student">Student</option>
+            <option value="instructor">Instructor / Teacher</option>
+          </select>
         <button type="submit">Register</button>
       </form>
       <br>
