@@ -45,7 +45,7 @@ form {
   gap: 1rem;
 }
 
-input {
+input, select {
   width: 100%;
   padding: 12px 16px;
   background: rgba(0, 0, 0, 0.3);
@@ -53,11 +53,25 @@ input {
   border-radius: 8px;
   color: var(--text-main);
   outline: none;
+  cursor: pointer;
+  
+  /* This removes the default clunky browser arrow so it looks sleek */
+  appearance: none; 
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }
 
-input:focus {
+/* Add the neon cyan glow when clicked */
+input:focus, select:focus {
   border-color: var(--neon-cyan);
   box-shadow: var(--glow-cyan);
+}
+
+/* Style the actual dropdown menu items so they are dark, not white */
+option {
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  padding: 10px;
 }
 
 button {
@@ -117,34 +131,5 @@ button.secondary:hover {
   color: var(--neon-cyan);
   box-shadow: none; /* overrides the main button glow */
   transform: translateX(-5px); /* Slides left instead of up */
-}
-
-input, select {
-  width: 100%;
-  padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  color: var(--text-main);
-  outline: none;
-  cursor: pointer;
-  
-  /* This removes the default clunky browser arrow so it looks sleek */
-  appearance: none; 
-  -webkit-appearance: none;
-  -moz-appearance: none;
-}
-
-/* Add the neon cyan glow when clicked */
-input:focus, select:focus {
-  border-color: var(--neon-cyan);
-  box-shadow: var(--glow-cyan);
-}
-
-/* Style the actual dropdown menu items so they are dark, not white */
-option {
-  background-color: var(--bg-base);
-  color: var(--text-main);
-  padding: 10px;
 }
 

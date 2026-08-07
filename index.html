@@ -96,24 +96,9 @@
         }
       }
 
-      // Prevent the form from refreshing the page when clicking "Register"
-      document.getElementById('registerForm').addEventListener('submit', function(event) {
-        event.preventDefault(); 
-        
-        window.location.href = './student/dashboard.html';//takes us to the dashboard
-        
-        // You can add your data collection or API call here
-      });
-
-      document.getElementById('loginForm').addEventListener('submit', function(event) {
-        event.preventDefault(); 
-        
-        window.location.href = './student/dashboard.html';//takes us to the dashboard
-        
-        // You can add your data collection or API call here
-      });
 
 
     </script>
+    <script type="module" src="./src/js/auth.js"></script>
   </body>
 </html>

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instructor Portal - Classroom Live</title>
     <link rel="stylesheet" href="../src/css/global.css">
+    <link rel="stylesheet" href="../src/css/dashboard.css">
   </head>
   <body>
     
@@ -20,7 +21,7 @@
         <a class="nav-item">⚙️ Settings</a>
         
         <div style="margin-top: auto;">
-          <button class="secondary" onclick="window.location.href='./index.html'">Log Out</button>
+          <button onclick="logoutUser()">Log Out</button>
         </div>
       </nav>
 
@@ -97,6 +98,6 @@
 
       </main>
     </div>
-
+    <script type="module" src="../src/js/session.js"></script>
   </body>
 </html>
