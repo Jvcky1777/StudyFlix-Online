@@ -1,8 +1,20 @@
-// src/js/webrtc.js
-// import { db } from './firebase.js';
-// import { collection, doc, setDoc, addDoc, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
+// 1. Import initialized database from our central config
+import { db } from './firebase.js';
 
-// 1. WebRTC Configuration (Using Google's free STUN server to find IP addresses)
+// 2. Import Firestore functions for WebRTC signaling
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  addDoc, 
+  onSnapshot, 
+  getDoc, 
+  updateDoc 
+} from 'firebase/firestore';
+
+// =======================================================================
+// WebRTC Configuration (Using Google's free STUN server to find IP addresses)
+// =======================================================================
 const servers = {
   iceServers: [
     {

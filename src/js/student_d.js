@@ -1,27 +1,19 @@
 // src/js/student_d.js
 
-import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// 1. Import initialized instances from our central config
+import { auth, db } from './firebase.js';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyB0_9ram8RezushK3F7dO3UslQSKoi1AN0",
-  authDomain: "studyflix-stream.firebaseapp.com",
-  databaseURL: "https://studyflix-stream-default-rtdb.firebaseio.com",
-  projectId: "studyflix-stream",
-  storageBucket: "studyflix-stream.firebasestorage.app",
-  messagingSenderId: "689543291600",
-  appId: "1:689543291600:web:1224762c73ea2d04a334d5"
-};
+// 2. Import required SDK functions from npm packages
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
-// SAFETY CHECK: Initialize only if an app doesn't already exist
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = getAuth(app);
-const db = getFirestore(app);
-
+// =======================================================================
+// DASHBOARD UI SYNCHRONIZATION
+// =======================================================================
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     try {
+      // Fetch the specific user's document from Firestore
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
