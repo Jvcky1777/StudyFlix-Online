@@ -11,12 +11,7 @@
     
     <div class="classroom-container">
       
-      <!-- TEMPORARY CONNECTION CONTROLS FOR TESTING -->
-      <div style="background: #1a1a1a; padding: 15px; margin-bottom: 20px; text-align: center; border-radius: 8px; border: 1px solid var(--neon-cyan);">
-        <input type="text" id="room-input" placeholder="Enter Room ID (e.g., class123)" style="padding: 8px; margin-right: 10px; border-radius: 4px; border: none;">
-        <button id="create-btn" style="background: var(--neon-purple); color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">Start Class (Teacher)</button>
-        <button id="join-btn" style="background: var(--neon-cyan); color: black; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">Join Class (Student)</button>
-      </div>
+      
 
       <!-- MAIN VIDEO AREA -->
       <div class="video-stage">
@@ -53,13 +48,17 @@
 
         </div>
 
-        <!-- Bottom Controls -->
-        <div class="control-bar">
+        <!-- Host Control Bar -->
+        <div class="control-bar" style="border-top: 2px solid var(--neon-purple);">
           <button class="control-btn" title="Toggle Microphone">🎤</button>
           <button class="control-btn" title="Toggle Camera">📷</button>
           <button class="control-btn" title="Share Screen">💻</button>
-          <button class="control-btn" title="Raise Hand">✋</button>
-          <button class="control-btn danger" title="Leave Classroom" onclick="window.location.href='./dashboard.html'">🚪</button>
+          
+          <!-- Instructor Exclusive Controls -->
+          <button class="control-btn" style="color: var(--neon-cyan);" title="Mute All Students">🤫 Mute All</button>
+          <button class="control-btn" style="color: var(--neon-cyan);" title="Manage Breakout Rooms">👥 Groups</button>
+          
+          <button class="control-btn danger" title="End Class for Everyone" onclick="window.location.href='./teacher-dashboard.html'">🛑 End Class</button>
         </div>
 
       </div>
@@ -94,41 +93,39 @@
     </div>
 
     <script type="module">
-      // NOTICE: We import joinClassroom here instead of createClassroom
-      import { startCamera, joinClassroom } from '../src/js/video-stream.js';
-      
-      document.addEventListener('DOMContentLoaded', async () => {
-        // 1. Grab the room ID passed from the dashboard URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomId = urlParams.get('room');
+        import { startCamera, createClassroom } from '../src/js/video-stream.js';
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 1. Grab the room ID passed from the dashboard URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('room');
 
-        if (!roomId) {
-          alert("Error: Missing Room ID. Returning to dashboard.");
-          window.location.href = './dashboard.html';
-          return;
-        }
+            if (!roomId) {
+            alert("Error: Missing Room ID. Returning to dashboard.");
+            window.location.href = './teacher-dashboard.html';
+            return;
+            }
 
-        console.log("Joining Active Room ID:", roomId);
+            console.log("Active Host Room ID:", roomId);
 
-        // 2. Start the student's camera automatically
-        try {
-          await startCamera();
-          console.log("Camera feed initialized.");
-        } catch (error) {
-          console.error("Camera Error:", error);
-          alert("Could not access camera/microphone.");
-          return; 
-        }
+            // 2. Start the camera automatically
+            try {
+            await startCamera();
+            console.log("Camera feed initialized.");
+            } catch (error) {
+            console.error("Camera Error:", error);
+            alert("Could not access camera/microphone.");
+            return; // Stop execution if camera fails
+            }
 
-        // 3. Automatically JOIN the live room created by the instructor
-        try {
-          await joinClassroom(roomId);
-          console.log(`Successfully connected to live room: ${roomId}`);
-        } catch (error) {
-          console.error("Failed to join room:", error);
-          alert("Could not connect to the classroom. Please check the room code.");
-        }
-      });
+            // 3. Automatically create the live room
+            try {
+            await createClassroom(roomId);
+            console.log(`Live room successfully opened: ${roomId}`);
+            } catch (error) {
+            console.error("Failed to create room:", error);
+            }
+        });
     </script>
 
   </body>

@@ -47,4 +47,23 @@ onAuthStateChanged(auth, async (user) => {
       console.error("Error fetching user profile data:", error);
     }
   }
+  
 });
+
+
+// =======================================================================
+// ACTION PANEL LOGIC: Joining Live Rooms
+// =======================================================================
+const joinLiveClassBtn = document.getElementById('joinLiveClassBtn');
+
+if (joinLiveClassBtn) {
+  joinLiveClassBtn.addEventListener('click', () => {
+    // 1. Trigger the browser's native pop-up prompt
+    const roomCode = prompt('Enter the 6-character Room Code provided by your instructor:');
+    
+    // 2. If they typed a code and hit OK, route them to the classroom
+    if (roomCode && roomCode.trim() !== "") {
+      window.location.href = `./classroom-live.html?room=${roomCode.trim()}`;
+    }
+  });
+}

@@ -33,8 +33,8 @@
           <input type="text" class="search-bar" placeholder="Search students, sessions, or files...">
           
           <div class="profile-chip">
-            <div class="avatar" style="background: var(--neon-purple);">M</div>
-            <span style="font-weight: 500;">Moses (Lab Tutor)</span>
+            <div class="avatar" id="userInit" style="background: var(--neon-purple);">?</div>
+            <span id="topBarName" style="font-weight: 500;">Loading...</span>
           </div>
         </div>
 
@@ -46,7 +46,7 @@
             <h2>Start an Ad-Hoc Session</h2>
             <p>Need to run a quick review or open office hours? Launch an instant live room and generate a shareable join link for your students.</p>
           </div>
-          <button class="btn-large" onclick="window.location.href='./classroom-live.html'">Go Live Now 🔴</button>
+          <button id="goLiveBtn" class="btn-large">Go Live Now 🔴</button>
         </div>
 
         <!-- Instructor Stats -->
@@ -99,5 +99,6 @@
       </main>
     </div>
     <script type="module" src="../src/js/session.js"></script>
+    <script type="module" src="../src/js/teacher_d.js"></script>
   </body>
 </html>
