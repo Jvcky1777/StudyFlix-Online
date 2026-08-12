@@ -33,17 +33,21 @@
         <!-- The Video Grid -->
         <div class="video-grid" id="video-streams-container">
           
-          <!-- Remote Feed (Instructor) -->
-          <div class="video-cell" style="border-color: var(--neon-cyan); box-shadow: var(--glow-cyan);">
-            <video id="remote-video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-            <div class="video-nameplate">Prof. Smith (Host)</div>
-          </div>
+          <!-- ALL REMOTE PEERS WILL BE INJECTED HERE BY JAVASCRIPT -->
 
           <!-- Local Feed (You) -->
-          <div class="video-cell">
+          <div class="video-cell" id="local-video-wrapper" style="position: relative;">
+            
+            <!-- The Pre-Camera Placeholder Card -->
+            <div id="local-placeholder" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 2; border-radius: inherit;">
+              <div id="local-avatar" class="avatar" style="width: 80px; height: 80px; font-size: 2.5rem; margin-bottom: 15px; background: var(--neon-purple); display: flex; align-items: center; justify-content: center; border-radius: 50%; color: white;">?</div>
+              <h3 id="local-name" style="color: white; margin: 0; font-size: 1.2rem;">Loading...</h3>
+              <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;">Camera is off</p>
+            </div>
+
             <!-- Note: muted is important so you don't hear your own echo -->
             <video id="local-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
-            <div class="video-nameplate">Moses (You)</div>
+            <div class="video-nameplate">You</div>
           </div>
 
         </div>
@@ -51,7 +55,7 @@
         <!-- Host Control Bar -->
         <div class="control-bar" style="border-top: 2px solid var(--neon-purple);">
           <button class="control-btn" title="Toggle Microphone">🎤</button>
-          <button class="control-btn" title="Toggle Camera">📷</button>
+          <button class="control-btn" id="toggle-camera-btn" title="Toggle Camera">📷</button>
           <button class="control-btn" title="Share Screen">💻</button>
           
           <!-- Instructor Exclusive Controls -->
@@ -92,40 +96,56 @@
 
     </div>
 
-    <script type="module">
-        import { startCamera, createClassroom } from '../src/js/video-stream.js';
-        
-        document.addEventListener('DOMContentLoaded', async () => {
-            // 1. Grab the room ID passed from the dashboard URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const roomId = urlParams.get('room');
+   <script type="module">
+      import { toggleCamera, createClassroom } from '../src/js/video-stream.js';
+      import { auth, db } from '../src/js/firebase.js';
+      import { onAuthStateChanged } from "firebase/auth";
+      import { doc, getDoc } from "firebase/firestore";
 
-            if (!roomId) {
-            alert("Error: Missing Room ID. Returning to dashboard.");
-            window.location.href = './teacher-dashboard.html';
-            return;
+      document.addEventListener('DOMContentLoaded', async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+
+        if (!roomId) {
+          alert("Error: Missing Room ID. Returning to dashboard.");
+          window.location.href = './teacher-dashboard.html';
+          return;
+        }
+
+        // 1. FETCH IDENTITY -> THEN CREATE ROOM
+        onAuthStateChanged(auth, async (user) => {
+          if (user) {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+              const firstName = userDoc.data().first_name;
+              document.getElementById('local-name').textContent = firstName;
+              document.getElementById('local-avatar').textContent = firstName.charAt(0).toUpperCase();
+
+              // Pass the ID and Name into Phase 2 Database Logic
+              createClassroom(roomId, user.uid, firstName).then(() => {
+                console.log(`Live room successfully opened: ${roomId}`);
+              }).catch((error) => console.error(error));
             }
-
-            console.log("Active Host Room ID:", roomId);
-
-            // 2. Start the camera automatically
-            try {
-            await startCamera();
-            console.log("Camera feed initialized.");
-            } catch (error) {
-            console.error("Camera Error:", error);
-            alert("Could not access camera/microphone.");
-            return; // Stop execution if camera fails
-            }
-
-            // 3. Automatically create the live room
-            try {
-            await createClassroom(roomId);
-            console.log(`Live room successfully opened: ${roomId}`);
-            } catch (error) {
-            console.error("Failed to create room:", error);
-            }
+          }
         });
+
+        // 2. CAMERA TOGGLE
+        const cameraBtn = document.getElementById('toggle-camera-btn');
+        const placeholder = document.getElementById('local-placeholder');
+        
+        if (cameraBtn) {
+          cameraBtn.addEventListener('click', async () => {
+            const isCameraOn = await toggleCamera();
+            if (isCameraOn) {
+              placeholder.style.display = 'none';
+              cameraBtn.style.color = "var(--neon-cyan)";
+            } else {
+              placeholder.style.display = 'flex';
+              cameraBtn.style.color = "white";
+            }
+          });
+        }
+      });
     </script>
 
   </body>
