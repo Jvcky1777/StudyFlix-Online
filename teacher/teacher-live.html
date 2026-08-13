@@ -18,7 +18,7 @@
         
         <!-- Top Info Bar (Overlay) -->
         <div style="position: absolute; top: 20px; left: 20px; z-index: 10;">
-            <button class="back-btn" onclick="window.location.href='./dashboard.html'" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8); margin-bottom: 10px;">
+            <button class="back-btn" onclick="window.location.href='./teacher-dashboard.html'" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8); margin-bottom: 10px;">
                 ← Back to Dashboard
             </button>
           
@@ -30,24 +30,25 @@
         
         </div>
 
-        <!-- The Video Grid -->
-        <div class="video-grid" id="video-streams-container">
+        <!-- The Split Video Layout -->
+        <div class="video-layout">
           
-          <!-- ALL REMOTE PEERS WILL BE INJECTED HERE BY JAVASCRIPT -->
-
-          <!-- Local Feed (You) -->
-          <div class="video-cell" id="local-video-wrapper" style="position: relative;">
-            
-            <!-- The Pre-Camera Placeholder Card -->
-            <div id="local-placeholder" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 2; border-radius: inherit;">
-              <div id="local-avatar" class="avatar" style="width: 80px; height: 80px; font-size: 2.5rem; margin-bottom: 15px; background: var(--neon-purple); display: flex; align-items: center; justify-content: center; border-radius: 50%; color: white;">?</div>
-              <h3 id="local-name" style="color: white; margin: 0; font-size: 1.2rem;">Loading...</h3>
-              <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;">Camera is off</p>
+          <!-- MAIN STAGE: Instructor (Teacher's Local Video) -->
+          <div class="main-stage" id="main-stage-container">
+            <div class="video-cell" id="local-video-wrapper" style="position: relative;">
+              <div id="local-placeholder" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 2; border-radius: inherit;">
+                <div id="local-avatar" class="avatar" style="width: 80px; height: 80px; font-size: 2.5rem; margin-bottom: 15px; background: var(--neon-purple); display: flex; align-items: center; justify-content: center; border-radius: 50%; color: white;">?</div>
+                <h3 id="local-name" style="color: white; margin: 0; font-size: 1.2rem;">Loading...</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;">Camera is off</p>
+              </div>
+              <video id="local-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+              <div class="video-nameplate">You (Instructor)</div>
             </div>
+          </div>
 
-            <!-- Note: muted is important so you don't hear your own echo -->
-            <video id="local-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
-            <div class="video-nameplate">You</div>
+          <!-- PARTICIPANT STRIP: Students (Injected by JS) -->
+          <div class="participant-strip" id="participant-strip-container">
+             <!-- Javascript will drop student cards here! -->
           </div>
 
         </div>
@@ -56,13 +57,13 @@
         <div class="control-bar" style="border-top: 2px solid var(--neon-purple);">
           <button class="control-btn" title="Toggle Microphone">🎤</button>
           <button class="control-btn" id="toggle-camera-btn" title="Toggle Camera">📷</button>
-          <button class="control-btn" title="Share Screen">💻</button>
+          <button class="control-btn" id="share-screen-btn" title="Share Screen">💻</button>
           
           <!-- Instructor Exclusive Controls -->
           <button class="control-btn" style="color: var(--neon-cyan);" title="Mute All Students">🤫 Mute All</button>
           <button class="control-btn" style="color: var(--neon-cyan);" title="Manage Breakout Rooms">👥 Groups</button>
           
-          <button class="control-btn danger" title="End Class for Everyone" onclick="window.location.href='./teacher-dashboard.html'">🛑 End Class</button>
+          <button class="control-btn danger" id="end-class-btn" title="End Class for Everyone">🛑 End Class</button>
         </div>
 
       </div>
@@ -97,7 +98,7 @@
     </div>
 
    <script type="module">
-      import { toggleCamera, createClassroom } from '../src/js/video-stream.js';
+      import { toggleCamera, createClassroom, endClassroom, toggleScreenShare, isScreenSharing } from '../src/js/video-stream.js';
       import { auth, db } from '../src/js/firebase.js';
       import { onAuthStateChanged } from "firebase/auth";
       import { doc, getDoc } from "firebase/firestore";
@@ -145,6 +146,31 @@
             }
           });
         }
+
+        // 3. END CLASS BUTTON
+        const endClassBtn = document.getElementById('end-class-btn');
+        if (endClassBtn) {
+          endClassBtn.addEventListener('click', async () => {
+            const confirmEnd = confirm("Are you sure you want to end this class for everyone?");
+            if (confirmEnd) {
+              await endClassroom(roomId);
+            }
+          });
+        }
+
+        // 4. SCREEN SHARE BUTTON Function
+        const shareBtn = document.getElementById('share-screen-btn');
+        if (shareBtn) {
+          shareBtn.addEventListener('click', async () => {
+            const isSharing = await toggleScreenShare();
+            if (isSharing) {
+              shareBtn.style.color = "var(--neon-cyan)";
+            } else {
+              shareBtn.style.color = "var(--text-main)";
+            }
+          });
+        }
+
       });
     </script>
 

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Ended - Classroom Live</title>
+    <!-- Hooking into your existing global styles -->
+    <link rel="stylesheet" href="../src/css/global.css">
+    
+    <style>
+      /* Layout specifically for the exit page */
+      .end-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+      
+      .end-card {
+        background: var(--bg-surface);
+        padding: 40px;
+        border-radius: 12px;
+        border: 1px solid var(--neon-purple);
+        box-shadow: var(--glow-purple);
+        text-align: center;
+        max-width: 450px;
+        width: 100%;
+        backdrop-filter: blur(10px);
+      }
+      
+      .end-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+      }
+      
+      .end-card p {
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+        line-height: 1.5;
+        font-size: 1.1rem;
+      }
+    </style>
+  </head>
+  <body>
+    
+    <div class="end-container">
+      <div class="end-card">
+        <div class="end-icon">👋</div>
+        
+        <!-- Utilizing your global.css glow-text class -->
+        <h2 class="glow-text">Class Dismissed</h2>
+        
+        <p>The instructor has officially ended this live session. Thank you for attending!</p>
+        
+        <!-- Utilizing your global.css button styling -->
+        <button id="return-btn">Return to Dashboard</button>
+      </div>
+    </div>
+
+    <script>
+      // Automatically route them back to their specific dashboard based on the folder they are in
+      document.getElementById('return-btn').addEventListener('click', () => {
+        if (window.location.pathname.includes('/teacher/')) {
+          window.location.href = './teacher-dashboard.html';
+        } else {
+          window.location.href = './dashboard.html';
+        }
+      });
+    </script>
+    
+  </body>
+</html>
