@@ -47,10 +47,10 @@ form {
 
 input, select {
   width: 100%;
-  padding: 12px 16px;
+  padding: 12px 20px; /* Slightly wider padding for curved edges */
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
+  border-radius: 30px; /* Ultra-smooth pill shape */
   color: var(--text-main);
   outline: none;
   cursor: pointer;
@@ -59,6 +59,7 @@ input, select {
   appearance: none; 
   -webkit-appearance: none;
   -moz-appearance: none;
+  transition: all 0.3s ease;
 }
 
 /* Add the neon cyan glow when clicked */
@@ -81,7 +82,7 @@ button {
   background: transparent;
   color: var(--neon-cyan);
   border: 2px solid var(--neon-cyan);
-  border-radius: 8px;
+  border-radius: 30px; /* Ultra-smooth pill shape */
   font-weight: bold;
   text-transform: uppercase;
   cursor: pointer;

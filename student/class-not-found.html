@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Not Found - Classroom Live</title>
+    <link rel="stylesheet" href="../src/css/global.css">
+    <style>
+      .not-found-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .not-found-card {
+        background: var(--bg-surface);
+        padding: 40px;
+        border-radius: 12px;
+        border: 1px solid var(--neon-cyan);
+        box-shadow: var(--glow-cyan);
+        text-align: center;
+        max-width: 450px;
+        width: 100%;
+        backdrop-filter: blur(10px);
+      }
+      .not-found-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+      }
+      .not-found-card p {
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+        line-height: 1.5;
+        font-size: 1.1rem;
+      }
+    </style>
+  </head>
+  <body>
+    
+    <div class="not-found-container">
+      <div class="not-found-card">
+        <div class="not-found-icon">🔍</div>
+        <h2 class="glow-text">Class Not Found</h2>
+        <p>The room code you entered does not exist or the session has already concluded. Please check the code with your instructor.</p>
+        <button onclick="window.location.href='./dashboard.html'">Return to Dashboard</button>
+      </div>
+    </div>
+
+  </body>
+</html>

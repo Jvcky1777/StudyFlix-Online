@@ -10,13 +10,6 @@
   <body>
     
     <div class="classroom-container">
-      
-      <!-- TEMPORARY CONNECTION CONTROLS FOR TESTING -->
-      <div style="background: #1a1a1a; padding: 15px; margin-bottom: 20px; text-align: center; border-radius: 8px; border: 1px solid var(--neon-cyan);">
-        <input type="text" id="room-input" placeholder="Enter Room ID (e.g., class123)" style="padding: 8px; margin-right: 10px; border-radius: 4px; border: none;">
-        <button id="create-btn" style="background: var(--neon-purple); color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">Start Class (Teacher)</button>
-        <button id="join-btn" style="background: var(--neon-cyan); color: black; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">Join Class (Student)</button>
-      </div>
 
       <!-- MAIN VIDEO AREA -->
       <div class="video-stage">
@@ -44,30 +37,33 @@
           </div>
 
           <!-- PARTICIPANT STRIP: Students -->
-          <div class="participant-strip" id="participant-strip-container">
-            
-            <!-- Student's Local Video -->
-            <div class="video-cell" id="local-video-wrapper" style="position: relative;">
-              <div id="local-placeholder" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 2; border-radius: inherit;">
-                <div id="local-avatar" class="avatar" style="width: 80px; height: 80px; font-size: 2.5rem; margin-bottom: 15px; background: var(--neon-purple); display: flex; align-items: center; justify-content: center; border-radius: 50%; color: white;">?</div>
-                <h3 id="local-name" style="color: white; margin: 0; font-size: 1.2rem;">Loading...</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;">Camera is off</p>
+          <fieldset style="border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 8px; padding: 25px 20px 20px 20px; margin-top: 20px; width: 100%; box-sizing: border-box;">
+            <legend style="color: var(--neon-cyan); padding: 0 10px; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-left: 10px;">Participants</legend>
+            <div class="participant-strip" id="participant-strip-container">
+              
+              <!-- Student's Local Video -->
+              <div class="video-cell" id="local-video-wrapper" style="position: relative;">
+                <div id="local-placeholder" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 2; border-radius: inherit;">
+                  <div id="local-avatar" class="avatar" style="width: 80px; height: 80px; font-size: 2.5rem; margin-bottom: 15px; background: var(--neon-purple); display: flex; align-items: center; justify-content: center; border-radius: 50%; color: white;">?</div>
+                  <h3 id="local-name" style="color: white; margin: 0; font-size: 1.2rem;">Loading...</h3>
+                  <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;">Camera is off</p>
+                </div>
+                <video id="local-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+                <div class="video-nameplate">You</div>
               </div>
-              <video id="local-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
-              <div class="video-nameplate">You</div>
-            </div>
 
-          </div>
+            </div>
+          </fieldset>
 
         </div>
 
         <!-- Bottom Controls -->
         <div class="control-bar">
-          <button class="control-btn" title="Toggle Microphone">🎤</button>
+          <button class="control-btn" id="toggle-mic-btn" title="Toggle Microphone">🎤</button>
           <button class="control-btn" id="toggle-camera-btn" title="Toggle Camera">📷</button>
           <button class="control-btn" title="Share Screen">💻</button>
-          <button class="control-btn" title="Raise Hand">✋</button>
-          <button class="control-btn danger" title="Leave Classroom" onclick="window.location.href='./dashboard.html'">🚪</button>
+          <button class="control-btn" id="raise-hand-btn" title="Raise Hand">✋</button>
+          <button class="control-btn danger" id="leave-room-btn" title="Leave Classroom">🚪</button>
         </div>
 
       </div>
@@ -79,16 +75,7 @@
         </div>
         
         <div class="chat-messages" id="chat-feed">
-          <!-- Mock Message -->
-          <div style="font-size: 0.9rem;">
-            <span style="color: var(--neon-purple); font-weight: bold;">Prof. Smith:</span> 
-            <span style="color: var(--text-main);">Welcome everyone. Please mute your mics.</span>
-          </div>
-          <!-- Mock Message -->
-          <div style="font-size: 0.9rem;">
-            <span style="color: var(--neon-cyan); font-weight: bold;">Moses:</span> 
-            <span style="color: var(--text-main);">Will this session be recorded?</span>
-          </div>
+          <!-- Real messages will inject here -->
         </div>
 
         <div class="chat-input-area">
@@ -102,8 +89,8 @@
     </div>
 
     <script type="module">
-      // Notice we now import toggleCamera!
-      import { toggleCamera, joinClassroom } from '../src/js/video-stream.js';
+      import { toggleCamera, joinClassroom, leaveClassroom, toggleScreenShare, toggleMicrophone, toggleHandRaise } from '../src/js/video-stream.js';
+      import { sendMessage, listenForMessages } from '../src/js/live-chat.js';
       import { auth, db } from '../src/js/firebase.js';
       import { onAuthStateChanged } from "firebase/auth";
       import { doc, getDoc } from "firebase/firestore";
@@ -118,7 +105,7 @@
           return;
         }
 
-        // 1. FETCH IDENTITY -> THEN JOIN ROOM
+        // 1. FETCH IDENTITY -> JOIN ROOM & WIRE CHAT
         onAuthStateChanged(auth, async (user) => {
           if (user) {
             const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -127,10 +114,24 @@
               document.getElementById('local-name').textContent = firstName;
               document.getElementById('local-avatar').textContent = firstName.charAt(0).toUpperCase();
 
-              // Pass the ID and Name into Phase 2 Database Logic
+              // Join Room and Trigger Chat Listener
               joinClassroom(roomId, user.uid, firstName).then(() => {
-                console.log(`Connected to room data: ${roomId}`);
-              }).catch((error) => console.error(error));
+                listenForMessages(roomId);
+              }).catch(console.error);
+
+              // WIRE UP CHAT SUBMIT
+              const chatForm = document.getElementById('chat-form');
+              const chatInput = document.getElementById('chat-input');
+              if (chatForm && chatInput) {
+                chatForm.addEventListener('submit', async (e) => {
+                  e.preventDefault();
+                  const text = chatInput.value;
+                  if (text) {
+                    await sendMessage(roomId, text, firstName, 'student');
+                    chatInput.value = ''; // Clear input field
+                  }
+                });
+              }
             }
           }
         });
@@ -138,17 +139,58 @@
         // 2. CAMERA TOGGLE
         const cameraBtn = document.getElementById('toggle-camera-btn');
         const placeholder = document.getElementById('local-placeholder');
-        
         if (cameraBtn) {
           cameraBtn.addEventListener('click', async () => {
             const isCameraOn = await toggleCamera();
-            if (isCameraOn) {
-              placeholder.style.display = 'none';
-              cameraBtn.style.color = "var(--neon-cyan)";
-            } else {
-              placeholder.style.display = 'flex';
-              cameraBtn.style.color = "white";
+            placeholder.style.display = isCameraOn ? 'none' : 'flex';
+            cameraBtn.style.color = isCameraOn ? "var(--neon-cyan)" : "white";
+          });
+        }
+
+        // 3. MICROPHONE TOGGLE
+        const micBtn = document.getElementById('toggle-mic-btn');
+        if (micBtn) {
+          micBtn.addEventListener('click', async () => {
+            const isMicOn = await toggleMicrophone();
+            if (isMicOn !== null) {
+              // Glow Cyan when unmuted, White when muted
+              micBtn.style.color = isMicOn ? "var(--neon-cyan)" : "white";
             }
+          });
+        }
+
+        // 4. RAISE HAND TOGGLE
+        // RAISE HAND TOGGLE
+        const handBtn = document.getElementById('raise-hand-btn');
+        if (handBtn) {
+          handBtn.addEventListener('click', async () => {
+            const isRaised = await toggleHandRaise();
+            if (isRaised !== null) {
+              // Highlight the button cyan when the hand is currently raised
+              handBtn.style.color = isRaised ? "var(--neon-cyan)" : "white";
+              handBtn.style.boxShadow = isRaised ? "var(--glow-cyan)" : "none";
+              handBtn.style.border = isRaised ? "1px solid var(--neon-cyan)" : "none";
+            }
+          });
+        }
+
+
+        // LEAVE ROOM
+        const leaveBtn = document.getElementById('leave-room-btn');
+        if (leaveBtn) {
+          leaveBtn.addEventListener('click', async () => {
+            await leaveClassroom();
+            window.location.href = './dashboard.html';
+          });
+        }
+
+
+        // 4. SCREEN SHARE BUTTON (Optional for students)
+        const shareBtn = document.getElementById('share-screen-btn');
+        if (shareBtn) {
+          shareBtn.addEventListener('click', async () => {
+            const isSharing = await toggleScreenShare();
+            shareBtn.style.color = isSharing ? "var(--neon-cyan)" : "var(--text-main)";
           });
         }
       });

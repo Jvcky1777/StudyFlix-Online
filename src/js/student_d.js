@@ -13,7 +13,6 @@ import { doc, getDoc } from "firebase/firestore";
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     try {
-      // Fetch the specific user's document from Firestore
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
@@ -21,23 +20,14 @@ onAuthStateChanged(auth, async (user) => {
         const userData = userDocSnap.data();
         const firstName = userData.first_name;
 
-        // 1. Update the main welcome header ("Welcome back, [Name]!")
         const studNameEl = document.getElementById('studName');
-        if (studNameEl) {
-          studNameEl.textContent = firstName;
-        }
+        if (studNameEl) studNameEl.textContent = firstName;
 
-        // 2. Update the top bar name tag next to the avatar
         const topBarNameEl = document.getElementById('topBarName');
-        if (topBarNameEl) {
-          topBarNameEl.textContent = firstName;
-        }
+        if (topBarNameEl) topBarNameEl.textContent = firstName;
 
-        // 3. Update the avatar circle to show the user's first initial
         const userInitEl = document.getElementById('userInit');
-        if (userInitEl && firstName) {
-          userInitEl.textContent = firstName.charAt(0).toUpperCase();
-        }
+        if (userInitEl && firstName) userInitEl.textContent = firstName.charAt(0).toUpperCase();
 
         console.log("Dashboard profile synchronized successfully for:", firstName);
       } else {
@@ -47,23 +37,73 @@ onAuthStateChanged(auth, async (user) => {
       console.error("Error fetching user profile data:", error);
     }
   }
-  
 });
 
-
 // =======================================================================
-// ACTION PANEL LOGIC: Joining Live Rooms
+// ACTION PANEL LOGIC: Custom Modal & Room Code Verification
 // =======================================================================
 const joinLiveClassBtn = document.getElementById('joinLiveClassBtn');
+const roomModal = document.getElementById('room-modal');
+const modalCancelBtn = document.getElementById('modal-cancel-btn');
+const modalJoinBtn = document.getElementById('modal-join-btn');
+const roomCodeInput = document.getElementById('room-code-input');
 
-if (joinLiveClassBtn) {
+// 1. Open Modal when clicking "Join Class"
+if (joinLiveClassBtn && roomModal) {
   joinLiveClassBtn.addEventListener('click', () => {
-    // 1. Trigger the browser's native pop-up prompt
-    const roomCode = prompt('Enter the 6-character Room Code provided by your instructor:');
-    
-    // 2. If they typed a code and hit OK, route them to the classroom
-    if (roomCode && roomCode.trim() !== "") {
-      window.location.href = `./classroom-live.html?room=${roomCode.trim()}`;
+    roomModal.style.display = 'flex';
+    if (roomCodeInput) {
+      roomCodeInput.value = '';
+      roomCodeInput.focus();
+    }
+  });
+}
+
+// 2. Close Modal on Cancel
+if (modalCancelBtn && roomModal) {
+  modalCancelBtn.addEventListener('click', () => {
+    roomModal.style.display = 'none';
+  });
+}
+
+// 3. Verify Room Code in Firestore and Route Accordingly
+if (modalJoinBtn && roomCodeInput) {
+  modalJoinBtn.addEventListener('click', async () => {
+    const roomCode = roomCodeInput.value.trim();
+
+    if (!roomCode || roomCode.length < 5) {
+      alert("Please enter a valid room code.");
+      return;
+    }
+
+    modalJoinBtn.textContent = "Verifying...";
+    modalJoinBtn.disabled = true;
+
+    try {
+      const roomRef = doc(db, 'classrooms', roomCode);
+      const roomSnap = await getDoc(roomRef);
+
+      if (!roomSnap.exists()) {
+        // Room does not exist -> Go to Class Not Found page
+        window.location.href = './class-not-found.html';
+        return;
+      }
+
+      const roomData = roomSnap.data();
+      if (roomData.status === 'ended') {
+        // Room has ended -> Go to Session Ended page
+        window.location.href = './session-ended.html';
+        return;
+      }
+
+      // Valid active room -> Enter the live room
+      window.location.href = `./classroom-live.html?room=${roomCode}`;
+
+    } catch (error) {
+      console.error("Error verifying room code:", error);
+      alert("An error occurred while connecting to the classroom. Please try again.");
+      modalJoinBtn.textContent = "Join Class";
+      modalJoinBtn.disabled = false;
     }
   });
 }

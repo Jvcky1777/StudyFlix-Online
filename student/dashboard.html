@@ -100,6 +100,18 @@
         </div>
       </main>
     </div>
+    <!--Room Code Modal -->
+    <div id="room-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+      <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid var(--neon-cyan); box-shadow: var(--glow-cyan); max-width: 400px; width: 90%; text-align: center;">
+        <h3 class="glow-text" style="margin-bottom: 15px; font-size: 1.3rem;">Join Live Session</h3>
+        <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.95rem;">Enter the 6-character room code provided by your instructor:</p>
+        <input type="text" id="room-code-input" placeholder="e.g. x7b9qp" style="margin-bottom: 20px; text-align: center; font-size: 1.1rem; letter-spacing: 2px;" maxlength="6">
+        <div style="display: flex; gap: 10px;">
+          <button id="modal-cancel-btn" class="secondary" style="margin-top: 0;">Cancel</button>
+          <button id="modal-join-btn" style="margin-top: 0;">Join Class</button>
+        </div>
+      </div>
+    </div>
    
     <script type="module" src="../src/js/session.js"></script>
     <script type="module" src="../src/js/student_d.js"></script>

@@ -1,10 +1,16 @@
 import { db } from './firebase.js';
 import { 
-  collection, doc, setDoc, addDoc, onSnapshot, getDoc, updateDoc 
+  collection, doc, setDoc, addDoc, onSnapshot, getDoc, updateDoc, deleteDoc 
 } from 'firebase/firestore';
 
+// Import our separated UI logic
+import { 
+  addRemoteUserCard, removeRemoteUserCard, togglePlaceholder, 
+  toggleHandRaiseUI, addOrUpdateRosterItem, removeRosterItem 
+} from './ui-mod.js';
+
 // =======================================================================
-// WebRTC Configuration
+// WebRTC Configuration & Global State
 // =======================================================================
 const servers = {
   iceServers: [
@@ -13,119 +19,200 @@ const servers = {
   iceCandidatePoolSize: 10,
 };
 
-// Global State
 let localStream = null;
 const peerConnections = {}; 
 const remoteStreams = {};   
 
 let currentRoomId = null;
 let currentUserId = null;
+let currentRole = null; 
 export let isScreenSharing = false;
 let screenStream = null;
 
 // =======================================================================
-// PHASE 1: DYNAMIC UI CARD GENERATOR
+// AUDIO VISUALIZER (Real-Time Frequency Analyzer)
 // =======================================================================
-export function addRemoteUserCard(userId, userName, role) {
-  const targetContainerId = role === 'instructor' ? 'main-stage-container' : 'participant-strip-container';
-  const grid = document.getElementById(targetContainerId);
+let sharedAudioCtx = null;
+
+function attachVolumeMeter(stream, wrapperId, isInstructor) {
+  if (!stream) return;
   
-  if (!grid || document.getElementById(`remote-wrapper-${userId}`)) return null;
-
-  const wrapper = document.createElement('div');
-  wrapper.className = 'video-cell';
-  wrapper.id = `remote-wrapper-${userId}`;
-  wrapper.style.position = 'relative';
-  
-  wrapper.style.borderColor = role === 'instructor' ? 'var(--neon-purple)' : 'var(--neon-cyan)';
-  wrapper.style.boxShadow = role === 'instructor' ? 'var(--glow-purple)' : 'var(--glow-cyan)';
-
-  const initial = userName.charAt(0).toUpperCase();
-  const placeholder = document.createElement('div');
-  placeholder.id = `remote-placeholder-${userId}`;
-  placeholder.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 2; border-radius: inherit;';
-  
-  placeholder.innerHTML = `
-    <div class="avatar" style="width: 80px; height: 80px; font-size: 2.5rem; margin-bottom: 15px; background: var(--neon-cyan); display: flex; align-items: center; justify-content: center; border-radius: 50%; color: black;">${initial}</div>
-    <h3 style="color: white; margin: 0; font-size: 1.2rem;">${userName} ${role === 'instructor' ? '(Host)' : ''}</h3>
-    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;">Camera is off</p>
-  `;
-
-  const video = document.createElement('video');
-  video.id = `remote-video-${userId}`;
-  video.autoplay = true;
-  video.playsInline = true;
-  video.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
-
-  const nameplate = document.createElement('div');
-  nameplate.className = 'video-nameplate';
-  nameplate.textContent = userName;
-
-  wrapper.appendChild(placeholder);
-  wrapper.appendChild(video);
-  wrapper.appendChild(nameplate);
-  
-  const localWrapper = document.getElementById('local-video-wrapper');
-  if (localWrapper && grid.contains(localWrapper)) {
-    grid.insertBefore(wrapper, localWrapper);
-  } else {
-    grid.appendChild(wrapper);
+  if (!sharedAudioCtx) {
+    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
 
-  return { videoElement: video, placeholderElement: placeholder };
+  const analyser = sharedAudioCtx.createAnalyser();
+  analyser.fftSize = 64; 
+  analyser.smoothingTimeConstant = 0.6; 
+
+  try {
+    const source = sharedAudioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+  } catch (e) {
+    console.warn("Could not connect audio stream to analyzer:", e);
+    return;
+  }
+
+  const dataArray = new Uint8Array(analyser.frequencyBinCount);
+  const colorRGB = isInstructor ? '188, 19, 254' : '0, 243, 255'; 
+
+  const wrapper = document.getElementById(wrapperId);
+  if (!wrapper) return;
+
+  // Inject dynamic canvas over the video frame
+  let canvas = document.getElementById(`visualizer-${wrapperId}`);
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.id = `visualizer-${wrapperId}`;
+    canvas.style.cssText = `position: absolute; bottom: 35px; left: 5%; width: 10%; height: 7%; z-index: 3; pointer-events: none; opacity: 0; border: 1px solid rgba(${colorRGB}, 0.5); border-radius: 6px; background: rgba(0, 0, 0, 0.4);`;
+    wrapper.appendChild(canvas);
+  }
+  
+  const ctx = canvas.getContext('2d');
+
+  function updateMeter() {
+    if (!document.getElementById(wrapperId)) return; 
+
+    requestAnimationFrame(updateMeter);
+    analyser.getByteFrequencyData(dataArray);
+    
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const padding = 4;
+    const barWidth = ((canvas.width - (padding * 2)) / dataArray.length) - 2;
+    let x = padding;
+    let sum = 0;
+
+    // Draw the equalizer bars
+    for (let i = 0; i < dataArray.length; i++) {
+      const barHeight = (dataArray[i] / 255) * (canvas.height - (padding * 2));
+      sum += dataArray[i]; 
+
+      ctx.fillStyle = `rgb(${colorRGB})`;
+      ctx.shadowBlur = 3; 
+      ctx.shadowColor = `rgb(${colorRGB})`;
+      
+      ctx.fillRect(x, canvas.height - barHeight - padding, barWidth, barHeight);
+      x += barWidth + 2;
+    }
+
+    // Glow the entire container based on volume
+    const average = sum / dataArray.length;
+    if (average > 10) {
+      canvas.style.opacity = '0.85';
+      const intensity = Math.min(average / 2, 40);
+      wrapper.style.boxShadow = `0 0 10px rgba(${colorRGB}, 0.5), 0 0 ${20 + intensity}px rgba(${colorRGB}, 0.8)`;
+    } else {
+      wrapper.style.boxShadow = `0 0 10px rgba(${colorRGB}, 0.5), 0 0 20px rgba(${colorRGB}, 0.3)`;
+    }
+  }
+
+  updateMeter();
 }
 
 // =======================================================================
-// STEP 1: Toggle the Camera
+// UNIFIED HARDWARE INITIALIZATION (The Pipeline)
+// =======================================================================
+async function initializeMediaIfNeeded() {
+  if (localStream) return true;
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    
+    // Start tracks completely muted/hidden
+    localStream.getVideoTracks()[0].enabled = false;
+    localStream.getAudioTracks()[0].enabled = false;
+
+    const localVideo = document.getElementById('local-video');
+    if (localVideo) localVideo.srcObject = localStream;
+
+    // Start local visualizer immediately 
+    if (!window.localVisualizerStarted) {
+      attachVolumeMeter(localStream, 'local-video-wrapper', currentRole === 'instructor');
+      window.localVisualizerStarted = true;
+    }
+
+    // Plug tracks into any existing connections
+    Object.keys(peerConnections).forEach(async (peerId) => {
+      const pc = peerConnections[peerId];
+      const videoTrack = localStream.getVideoTracks()[0];
+      const audioTrack = localStream.getAudioTracks()[0];
+
+      const transceivers = pc.getTransceivers();
+      const videoTransceiver = transceivers[0]; 
+      const audioTransceiver = transceivers[1]; 
+
+      if (videoTrack && videoTransceiver) await videoTransceiver.sender.replaceTrack(videoTrack);
+      if (audioTrack && audioTransceiver) await audioTransceiver.sender.replaceTrack(audioTrack);
+    });
+
+    return true; 
+  } catch (error) {
+    console.error("Hardware Error:", error);
+    alert("Could not access camera or microphone. Please check your browser permissions.");
+    return false;
+  }
+}
+
+// =======================================================================
+// STEP 1: Toggle the Camera (Independent)
 // =======================================================================
 export async function toggleCamera() {
-  const localVideo = document.getElementById('local-video');
-  const myParticipantRef = doc(db, 'classrooms', currentRoomId, 'participants', currentUserId);
+  const success = await initializeMediaIfNeeded();
+  if (!success) return false;
 
-  if (!localStream) {
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localVideo.srcObject = localStream;
+  if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
 
-      Object.keys(peerConnections).forEach(async (peerId) => {
-        const pc = peerConnections[peerId];
-        const videoTrack = localStream.getVideoTracks()[0];
-        const audioTrack = localStream.getAudioTracks()[0];
-
-        // THE FIX: Target the exact wires by their index position!
-        const transceivers = pc.getTransceivers();
-        const videoTransceiver = transceivers[0]; // Always Video
-        const audioTransceiver = transceivers[1]; // Always Audio
-
-        if (videoTrack && videoTransceiver) await videoTransceiver.sender.replaceTrack(videoTrack);
-        if (audioTrack && audioTransceiver) await audioTransceiver.sender.replaceTrack(audioTrack);
-      });
-
-      await updateDoc(myParticipantRef, { cameraOn: true });
-      return true; 
-
-    } catch (error) {
-      console.error("Camera Error:", error);
-      alert("Could not start camera. Please check permissions.");
-      return false; 
-    }
-  } else {
-    const videoTrack = localStream.getVideoTracks()[0];
-    const audioTrack = localStream.getAudioTracks()[0];
-
-    if (videoTrack) {
-      videoTrack.enabled = !videoTrack.enabled; 
-      if (audioTrack) audioTrack.enabled = videoTrack.enabled;
-      
-      await updateDoc(myParticipantRef, { cameraOn: videoTrack.enabled });
-      return videoTrack.enabled; 
-    }
+  const videoTrack = localStream.getVideoTracks()[0];
+  if (videoTrack) {
+    videoTrack.enabled = !videoTrack.enabled; 
+    const myParticipantRef = doc(db, 'classrooms', currentRoomId, 'participants', currentUserId);
+    await updateDoc(myParticipantRef, { cameraOn: videoTrack.enabled });
+    return videoTrack.enabled; 
   }
   return false;
 }
 
 // =======================================================================
-// NEW: Toggle Screen Share (The "Swap" Method)
+// STEP 2: Toggle the Microphone (Independent)
+// =======================================================================
+export async function toggleMicrophone() {
+  const success = await initializeMediaIfNeeded();
+  if (!success) return false;
+
+  if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
+
+  const audioTrack = localStream.getAudioTracks()[0];
+  if (audioTrack) {
+    audioTrack.enabled = !audioTrack.enabled; 
+    const myParticipantRef = doc(db, 'classrooms', currentRoomId, 'participants', currentUserId);
+    await updateDoc(myParticipantRef, { micOn: audioTrack.enabled });
+    return audioTrack.enabled; 
+  }
+  return false;
+}
+
+// =======================================================================
+// TOGGLE HAND RAISE (Student feature)
+// =======================================================================
+let isHandRaised = false; 
+
+export async function toggleHandRaise() {
+  if (!currentRoomId || !currentUserId) return null;
+  
+  isHandRaised = !isHandRaised;
+  const myParticipantRef = doc(db, 'classrooms', currentRoomId, 'participants', currentUserId);
+  await updateDoc(myParticipantRef, { handRaised: isHandRaised });
+
+  toggleHandRaiseUI('local', isHandRaised);
+  return isHandRaised;
+}
+
+// =======================================================================
+// TOGGLE SCREEN SHARE (The "Swap" Method)
 // =======================================================================
 export async function toggleScreenShare() {
   const localVideo = document.getElementById('local-video');
@@ -135,27 +222,19 @@ export async function toggleScreenShare() {
     try {
       screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       const screenTrack = screenStream.getVideoTracks()[0];
-
       localVideo.srcObject = screenStream;
 
       Object.keys(peerConnections).forEach(async (peerId) => {
         const pc = peerConnections[peerId];
-        const videoTransceiver = pc.getTransceivers()[0]; // THE FIX: Always Video
-        
-        if (videoTransceiver) {
-          await videoTransceiver.sender.replaceTrack(screenTrack);
-        }
+        const videoTransceiver = pc.getTransceivers()[0]; 
+        if (videoTransceiver) await videoTransceiver.sender.replaceTrack(screenTrack);
       });
 
       isScreenSharing = true;
       await updateDoc(myParticipantRef, { cameraOn: true, isSharingScreen: true });
 
-      screenTrack.onended = () => {
-        stopScreenShare();
-      };
-
+      screenTrack.onended = () => stopScreenShare();
       return true;
-
     } catch (error) {
       console.error("Screen sharing cancelled or failed:", error);
       return false;
@@ -185,41 +264,22 @@ async function stopScreenShare() {
     
     Object.keys(peerConnections).forEach(async (peerId) => {
       const pc = peerConnections[peerId];
-      const videoTransceiver = pc.getTransceivers()[0]; // THE FIX: Always Video
-      
-      if (videoTransceiver && cameraTrack) {
-        await videoTransceiver.sender.replaceTrack(cameraTrack);
-      }
+      const videoTransceiver = pc.getTransceivers()[0]; 
+      if (videoTransceiver && cameraTrack) await videoTransceiver.sender.replaceTrack(cameraTrack);
     });
   } else {
     localVideo.srcObject = null;
   }
 
   await updateDoc(myParticipantRef, { cameraOn: isCameraActive, isSharingScreen: false });
-  
   const shareBtn = document.getElementById('share-screen-btn');
   if (shareBtn) shareBtn.style.color = "var(--text-main)";
-}
-
-// Helper: Stalls execution until the video track is fully live and ready
-async function waitForVideoTrack(stream, timeout = 2000) {
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
-    if (stream && stream.getVideoTracks().length > 0) {
-      const track = stream.getVideoTracks()[0];
-      if (track.readyState === 'live') {
-        return track;
-      }
-    }
-    await new Promise(resolve => setTimeout(resolve, 50));
-  }
-  return stream && stream.getVideoTracks().length > 0 ? stream.getVideoTracks()[0] : null;
 }
 
 // =======================================================================
 // PHASE 3 THE ENGINE: The Mesh Connection Builder
 // =======================================================================
-async function setupPeerConnection(roomId, myId, peerId, isCaller) {
+async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
   const pc = new RTCPeerConnection(servers);
   peerConnections[peerId] = pc;
   remoteStreams[peerId] = new MediaStream();
@@ -227,32 +287,35 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller) {
   const videoTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
   const audioTransceiver = pc.addTransceiver('audio', { direction: 'sendrecv' });
 
-  // STALLED STREAM INHERITANCE: Wait for the track to be 100% live before binding
   const localVideoEl = document.getElementById('local-video');
   const activeStream = localVideoEl ? localVideoEl.srcObject : null;
 
   if (activeStream) {
-    // Stall briefly to prevent the asynchronous race condition
-    const videoTrack = await waitForVideoTrack(activeStream);
+    const videoTrack = activeStream.getVideoTracks()[0];
     const audioTrack = localStream ? localStream.getAudioTracks()[0] : null;
 
-    if (videoTrack) {
-      await videoTransceiver.sender.replaceTrack(videoTrack);
-    }
-    if (audioTrack) {
-      await audioTransceiver.sender.replaceTrack(audioTrack);
-    }
+    if (videoTrack) videoTransceiver.sender.replaceTrack(videoTrack);
+    if (audioTrack) audioTransceiver.sender.replaceTrack(audioTrack);
   }
 
   pc.ontrack = (event) => {
     remoteStreams[peerId].addTrack(event.track);
     
     const remoteVideo = document.getElementById(`remote-video-${peerId}`);
-    if (remoteVideo && remoteVideo.srcObject !== remoteStreams[peerId]) {
-      remoteVideo.srcObject = remoteStreams[peerId];
+    if (remoteVideo) {
+      if (remoteVideo.srcObject !== remoteStreams[peerId]) {
+        remoteVideo.srcObject = remoteStreams[peerId];
+      }
+      remoteVideo.play().catch(e => console.log("Video auto-play delayed:", e));
     }
     
-    remoteVideo.play().catch(e => console.log("Video auto-play delayed until frames arrive."));
+    event.track.onunmute = () => {
+      togglePlaceholder(peerId, true); 
+    };
+
+    if (event.track.kind === 'audio') {
+      attachVolumeMeter(remoteStreams[peerId], `remote-wrapper-${peerId}`, peerRole === 'instructor');
+    }
   };
 
   const signalDocId = isCaller ? `${myId}_${peerId}` : `${peerId}_${myId}`;
@@ -261,9 +324,7 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller) {
   const calleeCandidates = collection(signalDoc, 'calleeCandidates');
 
   pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      addDoc(isCaller ? callerCandidates : calleeCandidates, event.candidate.toJSON());
-    }
+    if (event.candidate) addDoc(isCaller ? callerCandidates : calleeCandidates, event.candidate.toJSON());
   };
 
   if (isCaller) {
@@ -275,7 +336,6 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller) {
       const data = snapshot.data();
       if (!pc.currentRemoteDescription && data && data.answer) {
         await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        
         onSnapshot(calleeCandidates, (snapshot) => {
           snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
@@ -283,7 +343,6 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller) {
         });
       }
     });
-
   } else {
     onSnapshot(signalDoc, async (snapshot) => {
       const data = snapshot.data();
@@ -304,11 +363,12 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller) {
 }
 
 // =======================================================================
-// STEP 2: The Instructor generates the Conference Room
+// INSTRUCTOR START: Create the Classroom
 // =======================================================================
 export async function createClassroom(roomId, userId, userName) {
   currentRoomId = roomId;
   currentUserId = userId;
+  currentRole = 'instructor'; 
 
   const roomRef = doc(db, 'classrooms', roomId);
   await setDoc(roomRef, { hostId: userId, status: 'live', createdAt: new Date() });
@@ -316,73 +376,149 @@ export async function createClassroom(roomId, userId, userName) {
   const myParticipantRef = doc(collection(roomRef, 'participants'), userId);
   await setDoc(myParticipantRef, { uid: userId, name: userName, role: 'instructor', cameraOn: false });
 
+  window.addEventListener('beforeunload', () => leaveClassroom());
+
   const participantsRef = collection(roomRef, 'participants');
   onSnapshot(participantsRef, (snapshot) => {
     snapshot.docChanges().forEach((change) => {
       const peer = change.doc.data();
+      const peerId = change.doc.id; 
       
-      if (peer.uid !== userId) {
+      // 1. Update Roster UI (For everyone, including self)
+      if (change.type === 'added' || change.type === 'modified') {
+        addOrUpdateRosterItem(peerId, peer, userId); 
+      }
+      if (change.type === 'removed') {
+        removeRosterItem(peerId);
+      }
+
+      // 2. Video Engine & UI Cards (Remote peers only)
+      if (peerId !== userId) {
          if (change.type === 'added') {
-            addRemoteUserCard(peer.uid, peer.name, peer.role);
-            const isCaller = userId > peer.uid;
-            setupPeerConnection(roomId, userId, peer.uid, isCaller);
+            addRemoteUserCard(peerId, peer.name, peer.role); 
+            const isCaller = userId > peerId;
+            setupPeerConnection(roomId, userId, peerId, isCaller, peer.role);
          }
 
-         const placeholder = document.getElementById(`remote-placeholder-${peer.uid}`);
-         if (placeholder) {
-           placeholder.style.display = peer.cameraOn ? 'none' : 'flex';
+         if (change.type === 'removed') {
+            removeRemoteUserCard(peerId); 
+            if (peerConnections[peerId]) {
+              peerConnections[peerId].close();
+              delete peerConnections[peerId];
+            }
+            if (remoteStreams[peerId]) delete remoteStreams[peerId];
+         }
+
+         if (change.type !== 'removed') {
+           togglePlaceholder(peerId, peer.cameraOn); 
+           toggleHandRaiseUI(peerId, !!peer.handRaised); 
          }
       }
     });
   });
 
   onSnapshot(roomRef, (snapshot) => {
-    if (snapshot.exists() && snapshot.data().status === 'ended') {
-      window.location.href = './session-ended.html';
-    }
+    if (snapshot.exists() && snapshot.data().status === 'ended') window.location.href = './session-ended.html';
   });
 }
 
 // =======================================================================
-// STEP 3: The Student enters the Conference Room
+// HOST CONTROL: Mute All Students
+// =======================================================================
+export async function triggerMuteAll() {
+  if (!currentRoomId) return;
+  const roomRef = doc(db, 'classrooms', currentRoomId);
+  await updateDoc(roomRef, { muteAllTrigger: Date.now() });
+}
+
+export async function forceMuteLocalMic() {
+  if (localStream) {
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack && audioTrack.enabled) {
+      audioTrack.enabled = false; 
+      const myParticipantRef = doc(db, 'classrooms', currentRoomId, 'participants', currentUserId);
+      await updateDoc(myParticipantRef, { micOn: false });
+      const micBtn = document.getElementById('toggle-mic-btn');
+      if (micBtn) micBtn.style.color = "white"; 
+    }
+  }
+}
+
+// =======================================================================
+// STUDENT START: Join the Classroom
 // =======================================================================
 export async function joinClassroom(roomId, userId, userName) {
   currentRoomId = roomId;
   currentUserId = userId;
+  currentRole = 'student'; 
 
   const roomRef = doc(db, 'classrooms', roomId);
   const roomSnapshot = await getDoc(roomRef);
 
   if (roomSnapshot.exists()) {
+    const roomData = roomSnapshot.data();
+    
+    if (roomData.status === 'ended') {
+      window.location.href = './session-ended.html';
+      return;
+    }
+
     const myParticipantRef = doc(collection(roomRef, 'participants'), userId);
     await setDoc(myParticipantRef, { uid: userId, name: userName, role: 'student', cameraOn: false });
     
+    window.addEventListener('beforeunload', () => leaveClassroom());
+
     const participantsRef = collection(roomRef, 'participants');
     onSnapshot(participantsRef, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         const peer = change.doc.data();
+        const peerId = change.doc.id; 
         
-        if (peer.uid !== userId) {
+        // 1. Update Roster UI (For everyone, including self)
+        if (change.type === 'added' || change.type === 'modified') {
+          addOrUpdateRosterItem(peerId, peer, userId); 
+        }
+        if (change.type === 'removed') {
+          removeRosterItem(peerId);
+        }
+
+        // 2. Video Engine & UI Cards (Remote peers only)
+        if (peerId !== userId) {
            if (change.type === 'added') {
-              addRemoteUserCard(peer.uid, peer.name, peer.role);
-              const isCaller = userId > peer.uid;
-              setupPeerConnection(roomId, userId, peer.uid, isCaller);
+              addRemoteUserCard(peerId, peer.name, peer.role); 
+              const isCaller = userId > peerId;
+              setupPeerConnection(roomId, userId, peerId, isCaller, peer.role);
            }
 
-           const placeholder = document.getElementById(`remote-placeholder-${peer.uid}`);
-           if (placeholder) {
-             placeholder.style.display = peer.cameraOn ? 'none' : 'flex';
+           if (change.type === 'removed') {
+              removeRemoteUserCard(peerId); 
+              if (peerConnections[peerId]) {
+                peerConnections[peerId].close();
+                delete peerConnections[peerId];
+              }
+              if (remoteStreams[peerId]) delete remoteStreams[peerId];
+           }
+
+           if (change.type !== 'removed') {
+             togglePlaceholder(peerId, peer.cameraOn);
+             toggleHandRaiseUI(peerId, !!peer.handRaised);
            }
         }
       });
     });
 
+    // Listen for Teacher's Mute All Command
+    let lastMuteTrigger = roomData.muteAllTrigger || 0; 
     onSnapshot(roomRef, (snapshot) => {
-      if (snapshot.exists() && snapshot.data().status === 'ended') {
-        window.location.href = './session-ended.html';
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.status === 'ended') window.location.href = './session-ended.html';
+        if (data.muteAllTrigger && data.muteAllTrigger > lastMuteTrigger) {
+          lastMuteTrigger = data.muteAllTrigger; 
+          forceMuteLocalMic(); 
+        }
       }
     });
-
   } else {
     alert("This room does not exist yet! Please wait for the instructor to start the class, then refresh the page.");
     window.location.href = './dashboard.html';
@@ -390,8 +526,28 @@ export async function joinClassroom(roomId, userId, userName) {
 }
 
 // =======================================================================
-// STEP 4: The Instructor ends the class for everyone
+// STEP 4: Leaving and Ending Class Cleanly
 // =======================================================================
+export async function leaveClassroom() {
+  if (currentRoomId && currentUserId) {
+    try {
+      const myParticipantRef = doc(db, 'classrooms', currentRoomId, 'participants', currentUserId);
+      await deleteDoc(myParticipantRef);
+    } catch (error) {
+      console.error("Error leaving room:", error);
+    }
+  }
+
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
+  if (screenStream) {
+    screenStream.getTracks().forEach(track => track.stop());
+    screenStream = null;
+  }
+}
+
 export async function endClassroom(roomId) {
   const roomRef = doc(db, 'classrooms', roomId);
   await updateDoc(roomRef, { status: 'ended' });

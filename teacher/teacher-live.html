@@ -47,20 +47,23 @@
           </div>
 
           <!-- PARTICIPANT STRIP: Students (Injected by JS) -->
-          <div class="participant-strip" id="participant-strip-container">
-             <!-- Javascript will drop student cards here! -->
-          </div>
+          <fieldset style="border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 8px; padding: 10px 20px 20px 20px; margin-top: 20px; width: 100%; box-sizing: border-box;">
+            <legend style="color: var(--neon-cyan); padding: 0 10px; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-left: 10px;">Participants</legend>
+            <div class="participant-strip" id="participant-strip-container">
+               <!-- Javascript will drop student cards here! -->
+            </div>
+          </fieldset>
 
         </div>
 
         <!-- Host Control Bar -->
         <div class="control-bar" style="border-top: 2px solid var(--neon-purple);">
-          <button class="control-btn" title="Toggle Microphone">🎤</button>
+          <button class="control-btn" id="toggle-mic-btn" title="Toggle Microphone">🎤</button>
           <button class="control-btn" id="toggle-camera-btn" title="Toggle Camera">📷</button>
           <button class="control-btn" id="share-screen-btn" title="Share Screen">💻</button>
           
           <!-- Instructor Exclusive Controls -->
-          <button class="control-btn" style="color: var(--neon-cyan);" title="Mute All Students">🤫 Mute All</button>
+          <button class="control-btn" id="mute-all-btn" style="color: var(--neon-cyan);" title="Mute All Students">🤫 Mute All</button>
           <button class="control-btn" style="color: var(--neon-cyan);" title="Manage Breakout Rooms">👥 Groups</button>
           
           <button class="control-btn danger" id="end-class-btn" title="End Class for Everyone">🛑 End Class</button>
@@ -75,16 +78,7 @@
         </div>
         
         <div class="chat-messages" id="chat-feed">
-          <!-- Mock Message -->
-          <div style="font-size: 0.9rem;">
-            <span style="color: var(--neon-purple); font-weight: bold;">Prof. Smith:</span> 
-            <span style="color: var(--text-main);">Welcome everyone. Please mute your mics.</span>
-          </div>
-          <!-- Mock Message -->
-          <div style="font-size: 0.9rem;">
-            <span style="color: var(--neon-cyan); font-weight: bold;">Moses:</span> 
-            <span style="color: var(--text-main);">Will this session be recorded?</span>
-          </div>
+          <!-- Real messages will inject here -->
         </div>
 
         <div class="chat-input-area">
@@ -98,7 +92,8 @@
     </div>
 
    <script type="module">
-      import { toggleCamera, createClassroom, endClassroom, toggleScreenShare, isScreenSharing } from '../src/js/video-stream.js';
+      import { toggleCamera, createClassroom, endClassroom, toggleScreenShare, toggleMicrophone, triggerMuteAll } from '../src/js/video-stream.js';
+      import { sendMessage, listenForMessages } from '../src/js/live-chat.js';
       import { auth, db } from '../src/js/firebase.js';
       import { onAuthStateChanged } from "firebase/auth";
       import { doc, getDoc } from "firebase/firestore";
@@ -113,7 +108,7 @@
           return;
         }
 
-        // 1. FETCH IDENTITY -> THEN CREATE ROOM
+        // 1. FETCH IDENTITY -> CREATE ROOM & WIRE CHAT
         onAuthStateChanged(auth, async (user) => {
           if (user) {
             const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -122,10 +117,24 @@
               document.getElementById('local-name').textContent = firstName;
               document.getElementById('local-avatar').textContent = firstName.charAt(0).toUpperCase();
 
-              // Pass the ID and Name into Phase 2 Database Logic
+              // Open Room and Trigger Chat Listener
               createClassroom(roomId, user.uid, firstName).then(() => {
-                console.log(`Live room successfully opened: ${roomId}`);
-              }).catch((error) => console.error(error));
+                listenForMessages(roomId);
+              }).catch(console.error);
+
+              // WIRE UP CHAT SUBMIT
+              const chatForm = document.getElementById('chat-form');
+              const chatInput = document.getElementById('chat-input');
+              if (chatForm && chatInput) {
+                chatForm.addEventListener('submit', async (e) => {
+                  e.preventDefault();
+                  const text = chatInput.value;
+                  if (text) {
+                    await sendMessage(roomId, text, firstName, 'instructor');
+                    chatInput.value = ''; // Clear input field
+                  }
+                });
+              }
             }
           }
         });
@@ -133,16 +142,22 @@
         // 2. CAMERA TOGGLE
         const cameraBtn = document.getElementById('toggle-camera-btn');
         const placeholder = document.getElementById('local-placeholder');
-        
         if (cameraBtn) {
           cameraBtn.addEventListener('click', async () => {
             const isCameraOn = await toggleCamera();
-            if (isCameraOn) {
-              placeholder.style.display = 'none';
-              cameraBtn.style.color = "var(--neon-cyan)";
-            } else {
-              placeholder.style.display = 'flex';
-              cameraBtn.style.color = "white";
+            placeholder.style.display = isCameraOn ? 'none' : 'flex';
+            cameraBtn.style.color = isCameraOn ? "var(--neon-cyan)" : "white";
+          });
+        }
+
+        // 3. MICROPHONE TOGGLE
+        const micBtn = document.getElementById('toggle-mic-btn');
+        if (micBtn) {
+          micBtn.addEventListener('click', async () => {
+            const isMicOn = await toggleMicrophone();
+            if (isMicOn !== null) {
+              // Glow Cyan when unmuted, White when muted
+              micBtn.style.color = isMicOn ? "var(--neon-cyan)" : "white";
             }
           });
         }
@@ -152,25 +167,28 @@
         if (endClassBtn) {
           endClassBtn.addEventListener('click', async () => {
             const confirmEnd = confirm("Are you sure you want to end this class for everyone?");
-            if (confirmEnd) {
-              await endClassroom(roomId);
-            }
+            if (confirmEnd) await endClassroom(roomId);
+          });
+        }
+        // HOST CONTROL: MUTE ALL
+        const muteAllBtn = document.getElementById('mute-all-btn');
+        if (muteAllBtn) {
+          muteAllBtn.addEventListener('click', async () => {
+            await triggerMuteAll();
+            // Flash the button purple to show it worked
+            muteAllBtn.style.color = "var(--neon-purple)";
+            setTimeout(() => muteAllBtn.style.color = "var(--neon-cyan)", 1000);
           });
         }
 
-        // 4. SCREEN SHARE BUTTON Function
+        // 4. SCREEN SHARE BUTTON
         const shareBtn = document.getElementById('share-screen-btn');
         if (shareBtn) {
           shareBtn.addEventListener('click', async () => {
             const isSharing = await toggleScreenShare();
-            if (isSharing) {
-              shareBtn.style.color = "var(--neon-cyan)";
-            } else {
-              shareBtn.style.color = "var(--text-main)";
-            }
+            shareBtn.style.color = isSharing ? "var(--neon-cyan)" : "var(--text-main)";
           });
         }
-
       });
     </script>
 
