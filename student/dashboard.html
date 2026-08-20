@@ -60,44 +60,15 @@
 
         <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem;">Your Curriculum</h2>
 
-
-
-        <!-- Card Grid -->
-
-
-        <div class="card-grid">
-          
-          <!-- Live Class -->
-          <div class="dash-card">
-            <span class="tag live">● Live Now</span>
-            <h3 style="color: var(--neon-purple); margin-bottom: 10px;">Java Web Apps & Multithreading</h3>
-            <p style="color: var(--text-muted); margin-bottom: 15px;">Started at 10:00 AM</p>
-            <p style="font-size: 0.9rem; margin-bottom: 20px;">Structuring servlets using background threads and testing simulations.</p>
-            <button class="secondary" id="joinLiveClassBtn">Join Class</button>
-          </div>
-
-
-          <!-- Upcoming Class 1 -->
-          <div class="dash-card">
-            <span class="tag upcoming">Upcoming</span>
-            <h3 style="color: var(--neon-cyan); margin-bottom: 10px;">Kotlin & Jetpack Compose</h3>
-            <p style="color: var(--text-muted); margin-bottom: 15px;">Today @ 4:00 PM</p>
-            <p style="font-size: 0.9rem; margin-bottom: 20px;">Building dynamic Android Studio UI components and layouts.</p>
-            <button>Set Reminder</button>
-          </div>
-
-
-
-          <!-- Upcoming Class 2 -->
-          <div class="dash-card">
-            <span class="tag upcoming">Upcoming</span>
-            <h3 style="color: var(--neon-cyan); margin-bottom: 10px;">Database Admin (PL/SQL)</h3>
-            <p style="color: var(--text-muted); margin-bottom: 15px;">Tomorrow @ 4:00 PM</p>
-            <p style="font-size: 0.9rem; margin-bottom: 20px;">Connecting Supabase PostgreSQL to external application environments.</p>
-            <button>Set Reminder</button>
-          </div>
-
+        <!-- Card Grid (Dynamic injection via JS) -->
+        <div class="card-grid" id="student-classes-grid">
+          <!-- Real-time Firestore classes appear here -->
         </div>
+
+        <div class="card-grid" id="student-past-classes-grid">
+          <!-- Past classes will appear here -->
+        </div>
+
       </main>
     </div>
     <!--Room Code Modal -->

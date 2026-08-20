@@ -371,7 +371,13 @@ export async function createClassroom(roomId, userId, userName) {
   currentRole = 'instructor'; 
 
   const roomRef = doc(db, 'classrooms', roomId);
-  await setDoc(roomRef, { hostId: userId, status: 'live', createdAt: new Date() });
+  
+  // 👇 THE FIX: Added { merge: true } so we don't erase existing scheduled data
+  await setDoc(roomRef, { 
+    hostId: userId, 
+    status: 'live', 
+    liveStartedAt: new Date() 
+  }, { merge: true });
 
   const myParticipantRef = doc(collection(roomRef, 'participants'), userId);
   await setDoc(myParticipantRef, { uid: userId, name: userName, role: 'instructor', cameraOn: false });

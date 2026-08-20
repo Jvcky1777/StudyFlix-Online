@@ -139,3 +139,4 @@ export function removeRosterItem(peerId) {
   const listItem = document.getElementById(`roster-item-${peerId}`);
   if (listItem) listItem.remove();
 }
+

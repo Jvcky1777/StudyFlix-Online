@@ -6,6 +6,7 @@
     <title>Live Room - Classroom Live</title>
     <link rel="stylesheet" href="../src/css/global.css">
     <link rel="stylesheet" href="../src/css/classroom.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   </head>
   <body>
     
@@ -59,11 +60,27 @@
 
         <!-- Bottom Controls -->
         <div class="control-bar">
-          <button class="control-btn" id="toggle-mic-btn" title="Toggle Microphone">🎤</button>
-          <button class="control-btn" id="toggle-camera-btn" title="Toggle Camera">📷</button>
-          <button class="control-btn" title="Share Screen">💻</button>
-          <button class="control-btn" id="raise-hand-btn" title="Raise Hand">✋</button>
-          <button class="control-btn danger" id="leave-room-btn" title="Leave Classroom">🚪</button>
+          <!-- Mic Button (Starts Muted/White) -->
+          <button class="control-btn" id="toggle-mic-btn" title="Toggle Microphone" style="color: white;">
+            <i class="fa-solid fa-microphone-slash"></i>
+          </button>
+
+          <!-- Camera Button (Starts Off/White) -->
+          <button class="control-btn" id="toggle-camera-btn" title="Toggle Camera" style="color: white;">
+            <i class="fa-solid fa-video-slash"></i>
+          </button>
+
+          <!-- Screen Share Button (Starts Off/White) -->
+          <button class="control-btn" id="share-screen-btn" title="Share Screen" style="color: white;">
+            <i class="fa-solid fa-display"></i>
+          </button>
+          <button class="control-btn" id="raise-hand-btn" title="Raise Hand" style="color: white;">
+            <i class="fa-solid fa-hand"></i>
+          </button>
+
+          <button class="control-btn danger" id="leave-room-btn" title="Leave Classroom">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
         </div>
 
       </div>
@@ -136,26 +153,61 @@
           }
         });
 
-        // 2. CAMERA TOGGLE
+        // ==========================================
+        // 2. CAMERA TOGGLE LOGIC
+        // ==========================================
         const cameraBtn = document.getElementById('toggle-camera-btn');
         const placeholder = document.getElementById('local-placeholder');
+
         if (cameraBtn) {
           cameraBtn.addEventListener('click', async () => {
             const isCameraOn = await toggleCamera();
+            const icon = cameraBtn.querySelector('i');
+            
             placeholder.style.display = isCameraOn ? 'none' : 'flex';
             cameraBtn.style.color = isCameraOn ? "var(--neon-cyan)" : "white";
+            
+            // Swap Font Awesome classes
+            if (isCameraOn) {
+              icon.classList.replace('fa-video-slash', 'fa-video');
+            } else {
+              icon.classList.replace('fa-video', 'fa-video-slash');
+            }
           });
         }
 
-        // 3. MICROPHONE TOGGLE
+        // ==========================================
+        // 3. MICROPHONE TOGGLE LOGIC
+        // ==========================================
         const micBtn = document.getElementById('toggle-mic-btn');
+
         if (micBtn) {
           micBtn.addEventListener('click', async () => {
             const isMicOn = await toggleMicrophone();
+            const icon = micBtn.querySelector('i');
+            
             if (isMicOn !== null) {
-              // Glow Cyan when unmuted, White when muted
               micBtn.style.color = isMicOn ? "var(--neon-cyan)" : "white";
+              
+              // Swap Font Awesome classes
+              if (isMicOn) {
+                icon.classList.replace('fa-microphone-slash', 'fa-microphone');
+              } else {
+                icon.classList.replace('fa-microphone', 'fa-microphone-slash');
+              }
             }
+          });
+        }
+
+        // ==========================================
+        // 4. SCREEN SHARE TOGGLE LOGIC
+        // ==========================================
+        const shareBtn = document.getElementById('share-screen-btn');
+        if (shareBtn) {
+          shareBtn.addEventListener('click', async () => {
+            const isSharing = await toggleScreenShare();
+            // The display icon stays the same, just glows cyan
+            shareBtn.style.color = isSharing ? "var(--neon-cyan)" : "white";
           });
         }
 
@@ -185,14 +237,7 @@
         }
 
 
-        // 4. SCREEN SHARE BUTTON (Optional for students)
-        const shareBtn = document.getElementById('share-screen-btn');
-        if (shareBtn) {
-          shareBtn.addEventListener('click', async () => {
-            const isSharing = await toggleScreenShare();
-            shareBtn.style.color = isSharing ? "var(--neon-cyan)" : "var(--text-main)";
-          });
-        }
+       
       });
     </script>
 

@@ -15,7 +15,7 @@
         <h2 class="glow-text" style="font-size: 1.5rem; text-align: left; padding-left: 15px;">Host Menu</h2>
         
         <a class="nav-item active">🎛️ Command Center</a>
-        <a class="nav-item">🗓️ Schedule Classes</a>
+        <a href="#" id="openScheduleModalBtn" class="nav-item">🗓️ Schedule Classes</a>
         <a class="nav-item">📂 Upload Resources</a>
         <a class="nav-item">📊 Student Analytics</a>
         <a class="nav-item">⚙️ Settings</a>
@@ -68,32 +68,17 @@
         <!-- Schedule Management -->
         <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem;">Upcoming Scheduled Classes</h2>
         
-        <div class="schedule-list">
-          
-          <div class="schedule-item">
-            <div class="schedule-info">
-              <span class="tag upcoming" style="margin-bottom: 5px;">Today @ 4:00 PM</span>
-              <h4>Computer Science: Java Multi-Threading</h4>
-              <p>Tshwane University of Technology Module - Group A</p>
-            </div>
-            <div>
-              <button class="secondary" style="margin-right: 10px;">Edit</button>
-              <button>Open Room</button>
-            </div>
-          </div>
+        <!-- Reset/Purge Button -->
+        <button id="clearAllClassesBtn" class="secondary" style="width: auto; padding: 8px 16px; font-size: 0.85rem; margin-top: 0; border-color: #ef4444; color: #ef4444;">
+          🗑️ Clear All Classes
+        </button>
 
-          <div class="schedule-item">
-            <div class="schedule-info">
-              <span class="tag upcoming" style="margin-bottom: 5px;">Tomorrow @ 2:00 PM</span>
-              <h4>Mobile Dev: Kotlin & Jetpack Compose</h4>
-              <p>Practical Implementation & UI Components</p>
-            </div>
-            <div>
-              <button class="secondary" style="margin-right: 10px;">Edit</button>
-              <button>Open Room</button>
-            </div>
-          </div>
-          
+        <div class="schedule-list" id="teacher-schedule-list">
+          <!-- Real-time Firestore schedule will appear here -->
+        </div>
+
+        <div class="schedule-list" id="teacher-past-schedule-list">
+          <!-- Past sessions will appear here -->
         </div>
 
       </main>
