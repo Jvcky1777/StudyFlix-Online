@@ -1,6 +1,6 @@
 import { db } from './firebase.js';
 import { 
-  collection, doc, setDoc, addDoc, onSnapshot, getDoc, updateDoc, deleteDoc 
+  collection, doc, setDoc, addDoc, onSnapshot, getDoc, updateDoc, deleteDoc, arrayUnion 
 } from 'firebase/firestore';
 
 // Import our separated UI logic
@@ -468,6 +468,11 @@ export async function joinClassroom(roomId, userId, userName) {
       window.location.href = './session-ended.html';
       return;
     }
+
+    // Adding student to attendance list
+    await updateDoc(roomRef, { 
+      attendance: arrayUnion({ uid: userId, name: userName }) 
+    });
 
     const myParticipantRef = doc(collection(roomRef, 'participants'), userId);
     await setDoc(myParticipantRef, { uid: userId, name: userName, role: 'student', cameraOn: false });

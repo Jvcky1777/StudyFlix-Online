@@ -50,9 +50,16 @@ onAuthStateChanged(auth, async (user) => {
         if (userInitEl && firstName) userInitEl.textContent = firstName.charAt(0).toUpperCase();
 
         console.log("Instructor profile synchronized successfully for:", firstName);
-        listenForMyClasses(user.uid);
-        listenForPastClasses(user.uid);
-        listenForStudentCount();
+        
+        if (window.location.pathname.includes('class-analytics')) {
+          // We are on the analytics page
+          generateAnalytics(user.uid);
+        } else {
+          // We are on the main command center dashboard
+          listenForMyClasses(user.uid);
+          listenForPastClasses(user.uid);
+          listenForStudentCount();
+        }
       }
     } catch (error) {
       console.error("Error fetching instructor profile data:", error);
@@ -257,7 +264,7 @@ window.deleteSingleClass = async (classId) => {
 
 
 // =======================================================================
-// INSTRUCTOR SCHEDULE LISTENER
+// INSTRUCTOR SCHEDULE LISTENER (Card Layout)
 // =======================================================================
 function listenForMyClasses(instructorId) {
   const classesRef = collection(db, 'classrooms');
@@ -269,7 +276,7 @@ function listenForMyClasses(instructorId) {
     list.innerHTML = '';
 
     if (snapshot.empty) {
-      list.innerHTML = '<p style="color: var(--text-muted);">You have no upcoming scheduled classes.</p>';
+      list.innerHTML = '<p style="color: var(--text-muted); grid-column: 1 / -1;">You have no upcoming scheduled classes.</p>';
       return;
     }
 
@@ -283,48 +290,44 @@ function listenForMyClasses(instructorId) {
         const oneHourInMillis = 60 * 60 * 1000; // 1 Hour in milliseconds
         const now = Date.now();
         
-        // If the current time is greater than the scheduled time + 1 hour
+        // Auto-expire logic
         if (now > (data.scheduledTimestamp + oneHourInMillis)) {
           console.log(`Class ${classId} has expired. Auto-moving to ended.`);
-          // Flip the database status to ended
           await updateDoc(docSnap.ref, { status: 'ended' });
-          return; // Skip rendering it here; it will immediately re-render in the past list!
+          return; 
         }
       }
 
       const title = data.title || 'Ad-Hoc Live Session';
       const module = data.module || 'General Session';
-      const timeText = isLive ? '● Live Now' : (data.scheduledTime || 'Scheduled');
+      const timeText = isLive ? 'Started Recently' : (data.scheduledTime || 'Scheduled');
+      const titleColor = isLive ? 'var(--neon-purple)' : 'var(--neon-cyan)';
 
-      const item = document.createElement('div');
-      item.className = 'schedule-item';
+      const card = document.createElement('div');
+      card.className = 'dash-card'; // Swapped to card class
 
-      item.innerHTML = `
-        <div class="schedule-info">
-          <span class="tag ${isLive ? 'live' : 'upcoming'}" style="margin-bottom: 5px;">${timeText}</span>
-          <h4>${title}</h4>
-          <p>${module}</p>
-        </div>
+      const tag = isLive 
+        ? `<span class="tag live">● Live Now</span>` 
+        : `<span class="tag upcoming">Upcoming</span>`;
+
+      card.innerHTML = `
+        ${tag}
+        <h3 style="color: ${titleColor}; margin-bottom: 10px;">${title}</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">${timeText}</p>
+        <p style="font-size: 0.9rem; margin-bottom: 20px;">${module}</p>
         
         <!-- Button Container -->
-        <div style="display: flex; flex-direction: column; gap: 10px; min-width: 150px;">
-          
-          <!-- Top Row: Edit & Start -->
-          <div style="display: flex; gap: 8px;">
-            ${!isLive ? `<button class="secondary" style="flex: 1; margin-top: 0; padding: 10px;" onclick="openEditModal('${classId}', '${title.replace(/'/g, "\\'")}', '${module.replace(/'/g, "\\'")}', ${data.scheduledTimestamp})">Edit</button>` : ''}
-            <button style="flex: 1; margin-top: 0; padding: 10px;" onclick="window.location.href='./teacher-live.html?room=${classId}'">
-              ${isLive ? 'Re-Join' : 'Start'}
-            </button>
-          </div>
-          
-          <!-- Bottom Row: Delete -->
-          <button class="secondary" style="border-color: #ef4444; color: #ef4444; margin-top: 0; padding: 10px; width: 100%;" onclick="deleteSingleClass('${classId}')">
-            🗑️ Delete
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+          ${!isLive ? `<button class="secondary" style="flex: 1; margin-top: 0;" onclick="openEditModal('${classId}', '${title.replace(/'/g, "\\'")}', '${module.replace(/'/g, "\\'")}', ${data.scheduledTimestamp})">Edit</button>` : ''}
+          <button style="flex: 1; margin-top: 0;" onclick="window.location.href='./teacher-live.html?room=${classId}'">
+            ${isLive ? 'Re-Join' : 'Start'}
           </button>
-          
         </div>
+        <button class="secondary" style="border-color: #ef4444; color: #ef4444; margin-top: 0; width: 100%;" onclick="deleteSingleClass('${classId}')">
+          🗑️ Delete
+        </button>
       `;
-      list.appendChild(item);
+      list.appendChild(card);
     });
   });
 }
@@ -337,8 +340,6 @@ function listenForPastClasses(instructorId) {
   const q = query(classesRef, where('hostId', '==', instructorId), where('status', '==', 'ended'));
 
   onSnapshot(q, (snapshot) => {
-    
-    // Updates the "Hours Taught" stat card based on total ended sessions
     const hoursStatEl = document.getElementById('stat-hours');
     if (hoursStatEl) {
       hoursStatEl.textContent = snapshot.size; 
@@ -349,7 +350,7 @@ function listenForPastClasses(instructorId) {
     list.innerHTML = '';
 
     if (snapshot.empty) {
-      list.innerHTML = '<p style="color: var(--text-muted);">No past sessions found.</p>';
+      list.innerHTML = '<p style="color: var(--text-muted); grid-column: 1 / -1;">No past sessions found.</p>';
       return;
     }
 
@@ -358,21 +359,21 @@ function listenForPastClasses(instructorId) {
       const title = data.title || 'Ad-Hoc Live Session';
       const module = data.module || 'General Session';
 
-      const item = document.createElement('div');
-      item.className = 'schedule-item';
-      item.style.opacity = '0.5';
+      const card = document.createElement('div');
+      card.className = 'dash-card';
+      
+      // Dim the card visually and disable clicking
+      card.style.opacity = '0.5'; 
+      card.style.pointerEvents = 'none'; 
 
-      item.innerHTML = `
-        <div class="schedule-info">
-          <span class="tag" style="background: rgba(255,255,255,0.1); color: var(--text-muted); margin-bottom: 5px; border: 1px solid rgba(255,255,255,0.2);">Ended</span>
-          <h4 style="color: var(--text-muted);">${title}</h4>
-          <p style="color: var(--text-muted);">${module}</p>
-        </div>
-        <div>
-          <button class="secondary" disabled style="opacity: 0.5; cursor: not-allowed;">View Analytics</button>
-        </div>
+      card.innerHTML = `
+        <span class="tag" style="background: rgba(255,255,255,0.1); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.2);">Ended</span>
+        <h3 style="color: var(--text-muted); margin-top: 15px; margin-bottom: 10px;">${title}</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Session Closed</p>
+        <p style="font-size: 0.9rem; margin-bottom: 20px;">${module}</p>
+        <button class="secondary" disabled style="opacity: 0.5;">View Analytics</button>
       `;
-      list.appendChild(item);
+      list.appendChild(card);
     });
   });
 }
@@ -484,4 +485,68 @@ if (scheduleForm) {
       submitBtn.disabled = false;
     }
   });
+}
+
+// =======================================================================
+// ANALYTICS DATA ENGINE (Runs only on class-analytics.html)
+// =======================================================================
+async function generateAnalytics(instructorId) {
+  const grid = document.getElementById('analytics-grid');
+  if (!grid) return;
+  grid.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">Loading student data...</p>';
+
+  try {
+    const classesRef = collection(db, 'classrooms');
+    const q = query(classesRef, where('hostId', '==', instructorId), where('status', '==', 'ended'));
+    const snapshot = await getDocs(q);
+
+    const studentData = {};
+
+    snapshot.forEach(docSnap => {
+      const classData = docSnap.data();
+      if (classData.attendance) {
+        classData.attendance.forEach(student => {
+          if (!studentData[student.uid]) {
+            studentData[student.uid] = { name: student.name, attendedCount: 0 };
+          }
+          studentData[student.uid].attendedCount++;
+        });
+      }
+    });
+
+    grid.innerHTML = '';
+    const studentKeys = Object.keys(studentData);
+    
+    if (studentKeys.length === 0) {
+      grid.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">No attendance data found yet. Teach a class to see your stats!</p>';
+      return;
+    }
+
+    studentKeys.forEach(uid => {
+      const student = studentData[uid];
+      const card = document.createElement('div');
+      card.className = 'dash-card';
+      
+      card.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+          <div class="avatar" style="background: var(--neon-cyan); color: var(--bg-base); width: 60px; height: 60px; font-size: 2rem;">
+            ${student.name.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <h3 style="color: white; margin: 0; font-size: 1.3rem;">${student.name}</h3>
+            <span class="tag" style="background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); border: 1px solid rgba(0, 243, 255, 0.5); margin-top: 5px;">Student</span>
+          </div>
+        </div>
+        <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0;">Total Classes Attended:</p>
+          <strong style="color: var(--neon-purple); font-size: 2rem; display: block; margin-top: 5px;">${student.attendedCount}</strong>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+  } catch (error) {
+    console.error("Error generating analytics:", error);
+    grid.innerHTML = '<p style="color: #ff3b30; grid-column: 1/-1;">Error loading data. Check console.</p>';
+  }
 }
