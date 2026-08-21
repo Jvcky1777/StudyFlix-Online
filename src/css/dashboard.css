@@ -18,6 +18,56 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
+  overflow-x: hidden; /* Prevents text from spilling out while sliding */
+}
+
+/* The Collapsed State */
+.sidebar.collapsed {
+  width: 80px; /*  To shrink to just fit the icons */
+  padding: 2rem 0.5rem; /* Tighter padding */
+}
+
+/* Hide the text completely when collapsed */
+.sidebar.collapsed .nav-text {
+  opacity: 0;
+  display: none;
+}
+
+/* Navigation Items */
+.sidebar .nav-item {
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 12px 15px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  font-weight: 500;
+  
+  /* Aligns icon and text horizontally */
+  display: flex;
+  align-items: center;
+  gap: 15px; 
+  white-space: nowrap; /* Stops text from wrapping to a new line */
+}
+
+/* Lock icons to a specific width so they stack perfectly vertically */
+.sidebar .nav-item i {
+  font-size: 1.2rem;
+  min-width: 24px; 
+  text-align: center;
+}
+
+/* Center everything when the sidebar is collapsed */
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebar .nav-item:hover, .sidebar .nav-item.active {
+  background: rgba(0, 243, 255, 0.1);
+  color: var(--neon-cyan);
+  border-left: 3px solid var(--neon-cyan);
 }
 
 .sidebar .nav-item {

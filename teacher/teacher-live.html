@@ -25,7 +25,7 @@
             <!-- The Recording Tag and Title -->
             <div style="display: flex; align-items: center;">
                 <div class="tag live">● REC</div>
-                <span style="margin-left: 10px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Java Web Apps & Multithreading</span>
+                <span id="room-title-display" style="margin-left: 10px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Loading Class...</span>
             </div>
         
         </div>
@@ -75,11 +75,11 @@
           
           <!-- Instructor Exclusive Controls -->
           <button class="control-btn" id="mute-all-btn" style="color: var(--neon-cyan);" title="Mute All Students">
-            <i class="fa-solid fa-microphone-slash"></i> Mute All
+            <i class="fa-solid fa-microphone-slash"></i>
           </button>
 
           <button class="control-btn danger" id="end-class-btn" title="End Class for Everyone">
-            <i class="fa-solid fa-power-off"></i> End Class
+            <i class="fa-solid fa-power-off"></i>
           </button>
         </div>
 
@@ -103,6 +103,25 @@
         </div>
       </div>
 
+      <!-- END CLASS WARNING MODAL -->
+      <div id="end-class-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+        <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid rgba(255, 59, 48, 0.5); box-shadow: 0 0 20px rgba(255, 59, 48, 0.2); max-width: 400px; width: 90%; text-align: center;">
+          
+          <div style="font-size: 3rem; margin-bottom: 10px; color: #ff3b30;">⚠️</div>
+          <h3 style="margin-bottom: 15px; font-size: 1.3rem; color: white;">End Live Session?</h3>
+          <p style="color: var(--text-muted); margin-bottom: 25px; font-size: 0.95rem; line-height: 1.5;">
+            Are you sure you want to end this class? This will instantly disconnect all students and close the room for everyone.
+          </p>
+          
+          <div style="display: flex; gap: 10px;">
+            <button id="modal-cancel-end" class="secondary" style="margin-top: 0; border-color: var(--text-muted); color: var(--text-muted);">Cancel</button>
+            <button id="modal-confirm-end" class="secondary" style="margin-top: 0; border-color: #ff3b30; color: #ff3b30;">End Class</button>
+          </div>
+
+        </div>
+      </div>
+      
+
     </div>
 
    <script type="module">
@@ -122,6 +141,17 @@
           return;
         }
 
+        const roomRef = doc(db, 'classrooms', roomId);
+        const roomSnap = await getDoc(roomRef);
+        const titleDisplay = document.getElementById('room-title-display');
+        
+        if (roomSnap.exists() && roomSnap.data().title) {
+          titleDisplay.textContent = roomSnap.data().title;
+        } else {
+          // Fallback if the teacher clicked "Go Live Now" without scheduling
+          titleDisplay.textContent = "Ad-Hoc Live Session"; 
+        }
+        
         // 1. FETCH IDENTITY -> CREATE ROOM & WIRE CHAT
         onAuthStateChanged(auth, async (user) => {
           if (user) {
@@ -211,14 +241,41 @@
           });
         }
 
-        // 3. END CLASS BUTTON
+        // ==========================================
+        // END CLASS MODAL LOGIC
+        // ==========================================
         const endClassBtn = document.getElementById('end-class-btn');
-        if (endClassBtn) {
-          endClassBtn.addEventListener('click', async () => {
-            const confirmEnd = confirm("Are you sure you want to end this class for everyone?");
-            if (confirmEnd) await endClassroom(roomId);
+        const endClassModal = document.getElementById('end-class-modal');
+        const cancelEndBtn = document.getElementById('modal-cancel-end');
+        const confirmEndBtn = document.getElementById('modal-confirm-end');
+
+        // 1. Open the modal when the control bar button is clicked
+        if (endClassBtn && endClassModal) {
+          endClassBtn.addEventListener('click', () => {
+            endClassModal.style.display = 'flex';
           });
         }
+
+        // 2. Close the modal if they click "Cancel"
+        if (cancelEndBtn) {
+          cancelEndBtn.addEventListener('click', () => {
+            endClassModal.style.display = 'none';
+          });
+        }
+
+        // 3. Actually end the class when they confirm
+        if (confirmEndBtn) {
+          confirmEndBtn.addEventListener('click', async () => {
+            // Change button state to prevent double-clicking
+            confirmEndBtn.textContent = "Ending...";
+            confirmEndBtn.style.opacity = "0.5";
+            confirmEndBtn.disabled = true;
+            
+            // Call the database function
+            await endClassroom(roomId);
+          });
+        }
+        
         // HOST CONTROL: MUTE ALL
         const muteAllBtn = document.getElementById('mute-all-btn');
         if (muteAllBtn) {

@@ -42,6 +42,19 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // =======================================================================
+// SIDEBAR TOGGLE LOGIC
+// =======================================================================
+const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+const mainSidebar = document.getElementById('main-sidebar');
+
+if (sidebarToggleBtn && mainSidebar) {
+  sidebarToggleBtn.addEventListener('click', () => {
+    // Instantly adds or removes the 'collapsed' class, triggering the CSS slide
+    mainSidebar.classList.toggle('collapsed');
+  });
+}
+
+// =======================================================================
 // ACTION PANEL LOGIC: Custom Modal & Room Code Verification
 // =======================================================================
 const joinLiveClassBtn = document.getElementById('joinLiveClassBtn');
@@ -147,10 +160,13 @@ function listenForClasses() {
       
       const titleColor = isLive ? 'var(--neon-purple)' : 'var(--neon-cyan)';
       
+      // Sanitize the title just in case it has quotes in it
+      const safeTitle = title.replace(/'/g, "\\'"); 
+
+      // Inject the dynamic ID and onclick listener into the scheduled button
       const actionBtn = isLive
         ? `<button class="secondary" onclick="openJoinModal('${classId}')">Join Class</button>`
-        : `<button>Set Reminder</button>`;
-
+        : `<button id="remind-btn-${classId}" style="border-color: rgba(255,255,255,0.2); color: var(--text-main);" onclick="toggleReminder('${classId}', '${safeTitle}')">🔔 Set Reminder</button>`;
       card.innerHTML = `
         ${tag}
         <h3 style="color: ${titleColor}; margin-bottom: 10px;">${title}</h3>
@@ -214,3 +230,38 @@ function listenForPastClasses() {
     });
   });
 }
+
+// =======================================================================
+// CUSTOM TOAST NOTIFICATION & REMINDER LOGIC
+// =======================================================================
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed; bottom: 30px; right: 30px; background: var(--bg-surface);
+    border: 1px solid var(--neon-cyan); box-shadow: var(--glow-cyan);
+    color: white; padding: 15px 25px; border-radius: 8px; font-weight: 500;
+    z-index: 9999; opacity: 0; transform: translateY(20px);
+    transition: all 0.4s ease; backdrop-filter: blur(10px);
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '1'; toast.style.transform = 'translateY(0)'; }, 10);
+  setTimeout(() => {
+    toast.style.opacity = '0'; toast.style.transform = 'translateY(20px)';
+    setTimeout(() => toast.remove(), 400);
+  }, 3000);
+}
+
+window.toggleReminder = (classId, className) => {
+  const btn = document.getElementById(`remind-btn-${classId}`);
+  if (!btn) return;
+  if (btn.textContent.includes('Set Reminder')) {
+    btn.innerHTML = '✅ Reminder Set';
+    btn.style.background = 'var(--neon-cyan)'; btn.style.color = 'var(--bg-base)'; btn.style.boxShadow = 'var(--glow-cyan)';
+    showToast(`🔔 We'll remind you before "${className}" starts!`);
+  } else {
+    btn.innerHTML = '🔔 Set Reminder';
+    btn.style.background = 'transparent'; btn.style.color = 'var(--text-main)'; btn.style.boxShadow = 'none';
+    showToast(`🔕 Reminder cancelled for "${className}".`);
+  }
+};

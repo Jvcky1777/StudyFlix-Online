@@ -52,6 +52,7 @@ onAuthStateChanged(auth, async (user) => {
         console.log("Instructor profile synchronized successfully for:", firstName);
         listenForMyClasses(user.uid);
         listenForPastClasses(user.uid);
+        listenForStudentCount();
       }
     } catch (error) {
       console.error("Error fetching instructor profile data:", error);
@@ -59,16 +60,110 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// =======================================================================
-// ACTION PANEL LOGIC: Generating Live Rooms
-// =======================================================================
-const goLiveBtn = document.getElementById('goLiveBtn');
 
-if (goLiveBtn) {
+// =======================================================================
+// SIDEBAR TOGGLE LOGIC
+// =======================================================================
+const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+const mainSidebar = document.getElementById('main-sidebar');
+
+if (sidebarToggleBtn && mainSidebar) {
+  sidebarToggleBtn.addEventListener('click', () => {
+    // This instantly adds or removes the 'collapsed' class, triggering the CSS slide
+    mainSidebar.classList.toggle('collapsed');
+  });
+}
+
+
+// =======================================================================
+// ACTION PANEL LOGIC: Ad-Hoc Session Modal & Generation
+// =======================================================================
+
+// 1. Dynamically inject the Ad-Hoc Modal HTML
+function injectAdHocModal() {
+  if (document.getElementById('adhoc-modal')) return;
+
+  const modalHTML = `
+    <div id="adhoc-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+      <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid var(--neon-purple); box-shadow: var(--glow-purple); max-width: 400px; width: 90%; text-align: left;">
+        <h3 class="glow-text" style="margin-bottom: 15px; font-size: 1.3rem; color: white; text-shadow: var(--glow-purple);">Start Instant Session</h3>
+        
+        <form id="adhoc-form">
+          <input type="text" id="adhoc-title" placeholder="Session Title (e.g., Quick Exam Review)" required>
+          <input type="text" id="adhoc-module" placeholder="Module Name (e.g., Computer Science 101)" required>
+          
+          <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button type="button" id="modal-adhoc-cancel" class="secondary" style="margin-top: 0; border-color: var(--text-muted); color: var(--text-muted);">Cancel</button>
+            <button type="submit" id="modal-adhoc-btn" style="margin-top: 0; background: var(--neon-purple); border-color: var(--neon-purple); color: white; box-shadow: var(--glow-purple);">Go Live 🔴</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+injectAdHocModal();
+
+// 2. Wire up the Modal Controls
+const goLiveBtn = document.getElementById('goLiveBtn');
+const adhocModal = document.getElementById('adhoc-modal');
+const adhocForm = document.getElementById('adhoc-form');
+const cancelAdhocBtn = document.getElementById('modal-adhoc-cancel');
+
+// Open the modal
+if (goLiveBtn && adhocModal) {
   goLiveBtn.addEventListener('click', () => {
+    adhocModal.style.display = 'flex';
+  });
+}
+
+// Close the modal
+if (cancelAdhocBtn) {
+  cancelAdhocBtn.addEventListener('click', () => {
+    adhocModal.style.display = 'none';
+    adhocForm.reset();
+  });
+}
+
+// 3. Handle the Submission and Create the Room
+if (adhocForm) {
+  adhocForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const title = document.getElementById('adhoc-title').value;
+    const module = document.getElementById('adhoc-module').value;
+    
+    // Generate the secure 6-character room code
     const roomId = Math.random().toString(36).substring(2, 8);
-    console.log("Generating secure live room:", roomId);
-    window.location.href = `./teacher-live.html?room=${roomId}`;
+    const currentUserId = auth.currentUser.uid; 
+    
+    const submitBtn = document.getElementById('modal-adhoc-btn');
+    submitBtn.textContent = "Starting...";
+    submitBtn.disabled = true;
+
+    try {
+      // Pre-create the room in the database BEFORE entering
+      const roomRef = doc(db, 'classrooms', roomId);
+      
+      await setDoc(roomRef, {
+        title: title,
+        module: module,
+        hostId: currentUserId,
+        status: 'live',
+        createdAt: new Date(),
+        liveStartedAt: new Date()
+      });
+
+      // Send the teacher directly into the newly created room!
+      window.location.href = `./teacher-live.html?room=${roomId}`;
+      
+    } catch (error) {
+      console.error("Error starting ad-hoc class:", error);
+      alert("Failed to start session. Please try again.");
+      submitBtn.textContent = "Go Live 🔴";
+      submitBtn.disabled = false;
+    }
   });
 }
 
@@ -242,6 +337,13 @@ function listenForPastClasses(instructorId) {
   const q = query(classesRef, where('hostId', '==', instructorId), where('status', '==', 'ended'));
 
   onSnapshot(q, (snapshot) => {
+    
+    // Updates the "Hours Taught" stat card based on total ended sessions
+    const hoursStatEl = document.getElementById('stat-hours');
+    if (hoursStatEl) {
+      hoursStatEl.textContent = snapshot.size; 
+    }
+
     const list = document.getElementById('teacher-past-schedule-list');
     if (!list) return;
     list.innerHTML = '';
@@ -274,6 +376,23 @@ function listenForPastClasses(instructorId) {
     });
   });
 }
+
+// =======================================================================
+// STATS: ACTIVE STUDENTS COUNTER
+// =======================================================================
+function listenForStudentCount() {
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where('role', '==', 'student'));
+
+  onSnapshot(q, (snapshot) => {
+    const studentStatEl = document.getElementById('stat-students');
+    if (studentStatEl) {
+      // snapshot.size automatically returns the number of matching documents!
+      studentStatEl.textContent = snapshot.size;
+    }
+  });
+}
+
 
 // =======================================================================
 // SCHEDULING MODAL CONTROLS

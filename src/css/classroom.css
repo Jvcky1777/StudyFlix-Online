@@ -90,14 +90,26 @@
 
 /* 2. Bottom Control Bar */
 .control-bar {
-  height: 80px;
-  background: var(--bg-base);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  height: 70px; /* Slightly slimmer */
+  background: rgba(20, 25, 40, 0.85); /* Semi-transparent surface color */
+  
+  /* The Border and Curve */
+  border: 1px solid rgba(188, 19, 254, 0.4); /* Subtle neon purple border */
+  border-radius: 40px; /* Curves the edges perfectly */
+  
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
   padding: 0 2rem;
+  
+  /* Float it at the bottom center */
+  margin: 0 auto 20px auto; 
+  width: max-content; /* Hugs the buttons tightly instead of stretching */
+  
+  /* Modern UI Glass effect */
+  backdrop-filter: blur(10px); 
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .control-btn {

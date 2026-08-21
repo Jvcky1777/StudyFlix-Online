@@ -6,23 +6,46 @@
     <title>Instructor Portal - Classroom Live</title>
     <link rel="stylesheet" href="../src/css/global.css">
     <link rel="stylesheet" href="../src/css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   </head>
   <body>
     
     <div class="dashboard-layout">
       <!-- INSTRUCTOR SIDEBAR -->
-      <nav class="sidebar">
-        <h2 class="glow-text" style="font-size: 1.5rem; text-align: left; padding-left: 15px;">Host Menu</h2>
+      <nav class="sidebar" id="main-sidebar">
         
-        <a class="nav-item active">🎛️ Command Center</a>
-        <a href="#" id="openScheduleModalBtn" class="nav-item">🗓️ Schedule Classes</a>
-        <a class="nav-item">📂 Upload Resources</a>
-        <a class="nav-item">📊 Student Analytics</a>
-        <a class="nav-item">⚙️ Settings</a>
-        
-        <div style="margin-top: auto;">
-          <button onclick="logoutUser()">Log Out</button>
+        <!-- Header & Toggle Button -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; padding-right: 10px;">
+          <h2 class="glow-text nav-text" style="font-size: 1.5rem; margin-bottom: 0; padding-left: 15px; white-space: nowrap;">Host Menu</h2>
+          <button id="sidebar-toggle" style="background: transparent; border: none; box-shadow: none; color: var(--neon-cyan); font-size: 1.4rem; width: auto; padding: 0; margin: 0; cursor: pointer;">
+            <i class="fa-solid fa-bars-staggered"></i>
+          </button>
         </div>
+        
+        <!-- Navigation Links -->
+        <a class="nav-item active">
+          <i class="fa-solid fa-gamepad"></i> <span class="nav-text">Command Center</span>
+        </a>
+        <a href="#" id="openScheduleModalBtn" class="nav-item">
+          <i class="fa-solid fa-calendar-plus"></i> <span class="nav-text">Schedule Classes</span>
+        </a>
+        <a class="nav-item">
+          <i class="fa-solid fa-folder-open"></i> <span class="nav-text">Upload Resources</span>
+        </a>
+        <a class="nav-item">
+          <i class="fa-solid fa-chart-simple"></i> <span class="nav-text">Student Analytics</span>
+        </a>
+        <a class="nav-item">
+          <i class="fa-solid fa-gear"></i> <span class="nav-text">Settings</span>
+        </a>
+        
+        <!-- Log Out Button -->
+        <div style="margin-top: auto;">
+          <button onclick="logoutUser()" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 0;">
+            <i class="fa-solid fa-right-from-bracket"></i> <span class="nav-text">Log Out</span>
+          </button>
+        </div>
+        
       </nav>
 
       <!-- MAIN CONTENT -->
@@ -40,29 +63,29 @@
 
         <h1 class="glow-text" style="text-align: left; margin-bottom: 2rem;">Instructor Portal</h1>
 
-        <!-- THE ACTION PANEL -->
-        <div class="action-panel">
-          <div>
-            <h2>Start an Ad-Hoc Session</h2>
-            <p>Need to run a quick review or open office hours? Launch an instant live room and generate a shareable join link for your students.</p>
-          </div>
-          <button id="goLiveBtn" class="btn-large">Go Live Now 🔴</button>
-        </div>
-
         <!-- Instructor Stats -->
         <div class="stats-row">
           <div class="stat-box">
-            <h3>45</h3>
+            <h3 id="stat-students">0</h3>
             <p>Active Students</p>
           </div>
           <div class="stat-box">
-            <h3>12</h3>
-            <p>Hours Taught This Week</p>
+            <h3 id="stat-hours">0</h3>
+            <p>Hours Taught</p>
           </div>
           <div class="stat-box">
-            <h3 style="color: var(--neon-cyan);">4.8/5</h3>
+            <h3 id="stat-rating" style="color: var(--neon-cyan);">4.8/5</h3>
             <p>Average Session Rating</p>
           </div>
+        </div>
+
+        <!-- THE ACTION PANEL -->
+        <div class="action-panel">
+          <div>
+            <h2>Start an Online Session Now!!!</h2>
+            <p>Need to run a quick review or open office hours? Launch an instant live room and generate a shareable join link for your students.</p>
+          </div>
+          <button id="goLiveBtn" class="btn-large">Go Live Now 🔴</button>
         </div>
 
         <!-- Schedule Management -->
