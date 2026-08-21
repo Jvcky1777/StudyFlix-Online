@@ -1,85 +1,24 @@
 // 1. Import initialized instances from our central config
-import { auth, db } from './firebase.js';
-
-// 2. Import required SDK functions from npm packages
-import { onAuthStateChanged } from "firebase/auth";
-import { 
-  doc, 
-  getDoc, 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  getDocs, 
-  writeBatch,
-  setDoc,
-  updateDoc,
-  deleteDoc
-
-} from "firebase/firestore";
-
-// 3. Import UI components
+import { db } from './firebase.js';
+import { doc, collection, query, where, onSnapshot, getDocs, writeBatch, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { injectScheduleModal } from './scheduling-class.js';
 
 // =======================================================================
-// INSTRUCTOR DASHBOARD UI SYNCHRONIZATION
+// INITIALIZATION ROUTER
 // =======================================================================
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    try {
-      const userDocRef = doc(db, "users", user.uid);
-      const userDocSnap = await getDoc(userDocRef);
+document.addEventListener('DOMContentLoaded', () => {
+  // Pull the secure ID saved by session.js
+  const currentUserId = sessionStorage.getItem("currentUID");
+  if (!currentUserId) return; 
 
-      if (userDocSnap.exists()) {
-        const userData = userDocSnap.data();
-        
-        // Extra security: Kick them out if a student tries to access this page
-        if (userData.role !== 'instructor') {
-          console.warn("Unauthorized access. Redirecting to student portal.");
-          window.location.href = '../student/dashboard.html';
-          return;
-        }
-
-        const firstName = userData.first_name;
-
-        // Update Top Bar and Avatar
-        const topBarNameEl = document.getElementById('topBarName');
-        if (topBarNameEl) topBarNameEl.textContent = `${firstName} (Instructor)`;
-
-        const userInitEl = document.getElementById('userInit');
-        if (userInitEl && firstName) userInitEl.textContent = firstName.charAt(0).toUpperCase();
-
-        console.log("Instructor profile synchronized successfully for:", firstName);
-        
-        if (window.location.pathname.includes('class-analytics')) {
-          // We are on the analytics page
-          generateAnalytics(user.uid);
-        } else {
-          // We are on the main command center dashboard
-          listenForMyClasses(user.uid);
-          listenForPastClasses(user.uid);
-          listenForStudentCount();
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching instructor profile data:", error);
-    }
+  if (window.location.pathname.includes('class-analytics')) {
+    generateAnalytics(currentUserId);
+  } else {
+    listenForMyClasses(currentUserId);
+    listenForPastClasses(currentUserId);
+    listenForStudentCount();
   }
 });
-
-
-// =======================================================================
-// SIDEBAR TOGGLE LOGIC
-// =======================================================================
-const sidebarToggleBtn = document.getElementById('sidebar-toggle');
-const mainSidebar = document.getElementById('main-sidebar');
-
-if (sidebarToggleBtn && mainSidebar) {
-  sidebarToggleBtn.addEventListener('click', () => {
-    // This instantly adds or removes the 'collapsed' class, triggering the CSS slide
-    mainSidebar.classList.toggle('collapsed');
-  });
-}
 
 
 // =======================================================================
@@ -143,7 +82,7 @@ if (adhocForm) {
     
     // Generate the secure 6-character room code
     const roomId = Math.random().toString(36).substring(2, 8);
-    const currentUserId = auth.currentUser.uid; 
+    const currentUserId = sessionStorage.getItem("currentUID");
     
     const submitBtn = document.getElementById('modal-adhoc-btn');
     submitBtn.textContent = "Starting...";
@@ -440,7 +379,7 @@ if (scheduleForm) {
     const isEditing = !!window.currentEditClassId;
     // Use the existing ID if editing, otherwise generate a new one
     const roomId = isEditing ? window.currentEditClassId : Math.random().toString(36).substring(2, 8);
-    const currentUserId = auth.currentUser.uid; 
+    const currentUserId = sessionStorage.getItem("currentUID");
 
     const submitBtn = document.getElementById('modal-sched-btn');
     submitBtn.textContent = "Saving...";

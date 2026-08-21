@@ -1,58 +1,17 @@
 // src/js/student_d.js
 
 // 1. Import initialized instances from our central config
-import { auth, db } from './firebase.js';
+import { db } from './firebase.js'; // auth is in session.js handled
 
-// 2. Import required SDK functions from npm packages
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, collection, query, where, onSnapshot } from "firebase/firestore";
+// 2. Import required SDK functions
+import { collection, query, where, doc, getDoc, onSnapshot } from "firebase/firestore";
 
-// =======================================================================
-// DASHBOARD UI SYNCHRONIZATION
-// =======================================================================
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    try {
-      const userDocRef = doc(db, "users", user.uid);
-      const userDocSnap = await getDoc(userDocRef);
-
-      if (userDocSnap.exists()) {
-        const userData = userDocSnap.data();
-        const firstName = userData.first_name;
-
-        const studNameEl = document.getElementById('studName');
-        if (studNameEl) studNameEl.textContent = firstName;
-
-        const topBarNameEl = document.getElementById('topBarName');
-        if (topBarNameEl) topBarNameEl.textContent = firstName;
-
-        const userInitEl = document.getElementById('userInit');
-        if (userInitEl && firstName) userInitEl.textContent = firstName.charAt(0).toUpperCase();
-
-        console.log("Dashboard profile synchronized successfully for:", firstName);
-        listenForClasses();
-        listenForPastClasses(user.uid);
-      } else {
-        console.warn("User authenticated, but no matching Firestore document was found.");
-      }
-    } catch (error) {
-      console.error("Error fetching user profile data:", error);
-    }
-  }
+// 3. Initialize Dashboard Data
+document.addEventListener('DOMContentLoaded', () => {
+  // session.js handles the UI, so we just fire the data listeners!
+  listenForClasses();
+  listenForPastClasses();
 });
-
-// =======================================================================
-// SIDEBAR TOGGLE LOGIC
-// =======================================================================
-const sidebarToggleBtn = document.getElementById('sidebar-toggle');
-const mainSidebar = document.getElementById('main-sidebar');
-
-if (sidebarToggleBtn && mainSidebar) {
-  sidebarToggleBtn.addEventListener('click', () => {
-    // Instantly adds or removes the 'collapsed' class, triggering the CSS slide
-    mainSidebar.classList.toggle('collapsed');
-  });
-}
 
 // =======================================================================
 // ACTION PANEL LOGIC: Custom Modal & Room Code Verification
@@ -166,7 +125,8 @@ function listenForClasses() {
       // Inject the dynamic ID and onclick listener into the scheduled button
       const actionBtn = isLive
         ? `<button class="secondary" onclick="openJoinModal('${classId}')">Join Class</button>`
-        : `<button id="remind-btn-${classId}" style="border-color: rgba(255,255,255,0.2); color: var(--text-main);" onclick="toggleReminder('${classId}', '${safeTitle}')">🔔 Set Reminder</button>`;
+        : `<button id="remind-btn-${classId}" style="border-color: rgba(255,255,255,0.2); color: var(--text-main);" onclick="toggleReminder('${classId}', '${safeTitle}', ${data.scheduledTimestamp})">🔔 Set Reminder</button>`;
+
       card.innerHTML = `
         ${tag}
         <h3 style="color: ${titleColor}; margin-bottom: 10px;">${title}</h3>
@@ -252,16 +212,83 @@ function showToast(message) {
   }, 3000);
 }
 
-window.toggleReminder = (classId, className) => {
+// Global object to track timers so we can cancel them if they toggle it off
+window.reminderTimeouts = {};
+
+window.toggleReminder = async (classId, className, scheduledTimestamp) => {
   const btn = document.getElementById(`remind-btn-${classId}`);
   if (!btn) return;
+
+  // ==========================================
+  // SCENARIO 1: TURNING THE REMINDER ON
+  // ==========================================
   if (btn.textContent.includes('Set Reminder')) {
+    
+    // 1. Update the UI visually
     btn.innerHTML = '✅ Reminder Set';
-    btn.style.background = 'var(--neon-cyan)'; btn.style.color = 'var(--bg-base)'; btn.style.boxShadow = 'var(--glow-cyan)';
+    btn.style.background = 'var(--neon-cyan)'; 
+    btn.style.color = 'var(--bg-base)'; 
+    btn.style.boxShadow = 'var(--glow-cyan)';
     showToast(`🔔 We'll remind you before "${className}" starts!`);
+
+    // 2. THE EMAILJS ROUTE (Background Task)
+    try {
+      await emailjs.send(
+        import.meta.env.VITE_EMAILJS_SERVICE_ID, 
+        import.meta.env.VITE_EMAILJS_TEMPLATE_ID, 
+        {
+          to_email: auth.currentUser.email,
+          class_name: className,
+          message: `This is a reminder that your live session for ${className} is starting soon! Log into your dashboard to join the room.`
+        }, 
+        import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+      );
+      console.log("Email reminder queued successfully.");
+    } catch (error) {
+      console.error("EmailJS failed to send:", error);
+    }
+
+    // 3. THE WEB PUSH ROUTE (Device Notification)
+    if ("Notification" in window) {
+      let perm = Notification.permission;
+      if (perm !== "granted" && perm !== "denied") {
+        perm = await Notification.requestPermission();
+      }
+
+      if (perm === "granted") {
+        // Calculate the exact milliseconds until 15 minutes before the class
+        const timeUntilClass = scheduledTimestamp - Date.now();
+        const timeUntilReminder = timeUntilClass - (15 * 60 * 1000); 
+
+        // If the class is more than 15 minutes away, set the timer
+        if (timeUntilReminder > 0) {
+          window.reminderTimeouts[classId] = setTimeout(() => {
+            new Notification("Classroom Live 🔴", {
+              body: `Heads up! "${className}" is starting in 15 minutes.`,
+              icon: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+            });
+          }, timeUntilReminder);
+          console.log(`Push notification scheduled for 15 mins before ${className}`);
+        }
+      }
+    }
+
+  // ==========================================
+  // SCENARIO 2: CANCELLING THE REMINDER
+  // ==========================================
   } else {
+    // 1. Revert the UI
     btn.innerHTML = '🔔 Set Reminder';
-    btn.style.background = 'transparent'; btn.style.color = 'var(--text-main)'; btn.style.boxShadow = 'none';
+    btn.style.background = 'transparent'; 
+    btn.style.color = 'var(--text-main)'; 
+    btn.style.boxShadow = 'none';
     showToast(`🔕 Reminder cancelled for "${className}".`);
+
+    // 2. Cancel the pending Push Notification timer
+    if (window.reminderTimeouts[classId]) {
+      clearTimeout(window.reminderTimeouts[classId]);
+      delete window.reminderTimeouts[classId];
+      console.log("Push notification timer cancelled.");
+    }
   }
 };

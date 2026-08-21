@@ -3,20 +3,17 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Classroom Live</title>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <title>My Schedule - Classroom Live</title>
     <link rel="stylesheet" href="../src/css/global.css">
     <link rel="stylesheet" href="../src/css/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   </head>
   <body>
     
-
     <div class="dashboard-layout">
       <!-- SIDEBAR -->
       <nav class="sidebar" id="main-sidebar">
         
-        <!-- Header & Toggle Button -->
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; padding-right: 10px;">
           <h2 class="glow-text nav-text" style="font-size: 1.5rem; margin-bottom: 0; padding-left: 15px; white-space: nowrap;">Menu</h2>
           <button id="sidebar-toggle" style="background: transparent; border: none; box-shadow: none; color: var(--neon-cyan); font-size: 1.4rem; width: auto; padding: 0; margin: 0; cursor: pointer;">
@@ -24,16 +21,16 @@
           </button>
         </div>
         
-        <a class="nav-item active">
+        <a href="./dashboard.html" class="nav-item">
           <i class="fa-solid fa-house"></i> <span class="nav-text">Dashboard</span>
         </a>
-        <a class="nav-item">
+        <a href="#" class="nav-item">
           <i class="fa-solid fa-book"></i> <span class="nav-text">Study Materials</span>
         </a>
-        <a href="./student-schedule.html" class="nav-item">
+        <a href="./student-schedule.html" class="nav-item active">
           <i class="fa-solid fa-calendar"></i> <span class="nav-text">Schedule</span>
         </a>
-        <a class="nav-item">
+        <a href="#" class="nav-item">
           <i class="fa-solid fa-gear"></i> <span class="nav-text">Settings</span>
         </a>
         
@@ -44,53 +41,40 @@
         </div>
       </nav>
 
-
       <!-- MAIN CONTENT -->
       <main class="dashboard-main">
         
-        <!-- NEW: Top Bar -->
+        <!-- Top Bar -->
         <div class="top-bar">
-          <input type="text" class="search-bar" placeholder="Search for classes, subjects, or peers...">
+          <input type="text" class="search-bar" placeholder="Search for classes or subjects...">
           
           <div class="profile-chip">
-            <div class="avatar" id="userInit">?..</div>
-            <span style="font-weight: 500;" id="topBarName" >Loading...</span>
+            <div class="avatar" id="userInit">?</div>
+            <span style="font-weight: 500;" id="topBarName">Loading...</span>
+            <!-- Hidden studName span just so the JS doesn't complain when fetching the profile -->
+            <span id="studName" style="display: none;"></span> 
           </div>
         </div>
 
-        <h1 class="glow-text" style="text-align: left; margin-bottom: 2rem;">Welcome back, <span id="studName">Student</span>!</h1>
+        <h1 class="glow-text" style="text-align: left; margin-bottom: 1rem;">My Schedule</h1>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">View your upcoming live sessions and past class history.</p>
 
-
-        <!-- Quick Stats Row -->
-        <div class="stats-row">
-          <div class="stat-box">
-            <h3>3</h3>
-            <p>Upcoming Sessions</p>
-          </div>
-          <div class="stat-box">
-            <h3>12</h3>
-            <p>Hours Logged</p>
-          </div>
-          <div class="stat-box">
-            <h3 style="color: var(--neon-cyan);">A+</h3>
-            <p>Current Standing</p>
-          </div>
-        </div>
-
-        <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem;">Your Curriculum</h2>
-
-        <!-- Card Grid (Dynamic injection via JS) -->
+        <!-- Upcoming Classes -->
+        <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem;">Upcoming Sessions</h2>
         <div class="card-grid" id="student-classes-grid">
           <!-- Real-time Firestore classes appear here -->
         </div>
 
+        <!-- Past Classes -->
+        <h2 style="text-align: left; margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem;">Past Sessions</h2>
         <div class="card-grid" id="student-past-classes-grid">
           <!-- Past classes will appear here -->
         </div>
 
       </main>
     </div>
-    <!--Room Code Modal -->
+
+    <!-- Room Code Modal -->
     <div id="room-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
       <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid var(--neon-cyan); box-shadow: var(--glow-cyan); max-width: 400px; width: 90%; text-align: center;">
         <h3 class="glow-text" style="margin-bottom: 15px; font-size: 1.3rem;">Join Live Session</h3>
