@@ -363,28 +363,11 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
 }
 
 // =======================================================================
-// INSTRUCTOR START: Create the Classroom
+// THE MESH ENGINE: Shared Participant Listener
 // =======================================================================
-export async function createClassroom(roomId, userId, userName) {
-  currentRoomId = roomId;
-  currentUserId = userId;
-  currentRole = 'instructor'; 
-
-  const roomRef = doc(db, 'classrooms', roomId);
+function startParticipantListener(roomId, myUserId) {
+  const participantsRef = collection(db, 'classrooms', roomId, 'participants');
   
-  // 👇 THE FIX: Added { merge: true } so we don't erase existing scheduled data
-  await setDoc(roomRef, { 
-    hostId: userId, 
-    status: 'live', 
-    liveStartedAt: new Date() 
-  }, { merge: true });
-
-  const myParticipantRef = doc(collection(roomRef, 'participants'), userId);
-  await setDoc(myParticipantRef, { uid: userId, name: userName, role: 'instructor', cameraOn: false });
-
-  window.addEventListener('beforeunload', () => leaveClassroom());
-
-  const participantsRef = collection(roomRef, 'participants');
   onSnapshot(participantsRef, (snapshot) => {
     snapshot.docChanges().forEach((change) => {
       const peer = change.doc.data();
@@ -392,18 +375,18 @@ export async function createClassroom(roomId, userId, userName) {
       
       // 1. Update Roster UI (For everyone, including self)
       if (change.type === 'added' || change.type === 'modified') {
-        addOrUpdateRosterItem(peerId, peer, userId); 
+        addOrUpdateRosterItem(peerId, peer, myUserId); 
       }
       if (change.type === 'removed') {
         removeRosterItem(peerId);
       }
 
       // 2. Video Engine & UI Cards (Remote peers only)
-      if (peerId !== userId) {
+      if (peerId !== myUserId) {
          if (change.type === 'added') {
             addRemoteUserCard(peerId, peer.name, peer.role); 
-            const isCaller = userId > peerId;
-            setupPeerConnection(roomId, userId, peerId, isCaller, peer.role);
+            const isCaller = myUserId > peerId;
+            setupPeerConnection(roomId, myUserId, peerId, isCaller, peer.role);
          }
 
          if (change.type === 'removed') {
@@ -422,32 +405,36 @@ export async function createClassroom(roomId, userId, userName) {
       }
     });
   });
+}
+
+
+
+// =======================================================================
+// INSTRUCTOR START: Create the Classroom
+// =======================================================================
+export async function createClassroom(roomId, userId, userName) {
+  currentRoomId = roomId;
+  currentUserId = userId;
+  currentRole = 'instructor'; 
+
+  const roomRef = doc(db, 'classrooms', roomId);
+  await setDoc(roomRef, { 
+    hostId: userId, 
+    status: 'live', 
+    liveStartedAt: new Date() 
+  }, { merge: true });
+
+  const myParticipantRef = doc(collection(roomRef, 'participants'), userId);
+  await setDoc(myParticipantRef, { uid: userId, name: userName, role: 'instructor', cameraOn: false });
+
+  window.addEventListener('beforeunload', () => leaveClassroom());
+
+  // 👇 Trigger the shared mesh engine
+  startParticipantListener(roomId, userId);
 
   onSnapshot(roomRef, (snapshot) => {
     if (snapshot.exists() && snapshot.data().status === 'ended') window.location.href = './session-ended.html';
   });
-}
-
-// =======================================================================
-// HOST CONTROL: Mute All Students
-// =======================================================================
-export async function triggerMuteAll() {
-  if (!currentRoomId) return;
-  const roomRef = doc(db, 'classrooms', currentRoomId);
-  await updateDoc(roomRef, { muteAllTrigger: Date.now() });
-}
-
-export async function forceMuteLocalMic() {
-  if (localStream) {
-    const audioTrack = localStream.getAudioTracks()[0];
-    if (audioTrack && audioTrack.enabled) {
-      audioTrack.enabled = false; 
-      const myParticipantRef = doc(db, 'classrooms', currentRoomId, 'participants', currentUserId);
-      await updateDoc(myParticipantRef, { micOn: false });
-      const micBtn = document.getElementById('toggle-mic-btn');
-      if (micBtn) micBtn.style.color = "white"; 
-    }
-  }
 }
 
 // =======================================================================
@@ -469,7 +456,6 @@ export async function joinClassroom(roomId, userId, userName) {
       return;
     }
 
-    // Adding student to attendance list
     await updateDoc(roomRef, { 
       attendance: arrayUnion({ uid: userId, name: userName }) 
     });
@@ -479,44 +465,8 @@ export async function joinClassroom(roomId, userId, userName) {
     
     window.addEventListener('beforeunload', () => leaveClassroom());
 
-    const participantsRef = collection(roomRef, 'participants');
-    onSnapshot(participantsRef, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        const peer = change.doc.data();
-        const peerId = change.doc.id; 
-        
-        // 1. Update Roster UI (For everyone, including self)
-        if (change.type === 'added' || change.type === 'modified') {
-          addOrUpdateRosterItem(peerId, peer, userId); 
-        }
-        if (change.type === 'removed') {
-          removeRosterItem(peerId);
-        }
-
-        // 2. Video Engine & UI Cards (Remote peers only)
-        if (peerId !== userId) {
-           if (change.type === 'added') {
-              addRemoteUserCard(peerId, peer.name, peer.role); 
-              const isCaller = userId > peerId;
-              setupPeerConnection(roomId, userId, peerId, isCaller, peer.role);
-           }
-
-           if (change.type === 'removed') {
-              removeRemoteUserCard(peerId); 
-              if (peerConnections[peerId]) {
-                peerConnections[peerId].close();
-                delete peerConnections[peerId];
-              }
-              if (remoteStreams[peerId]) delete remoteStreams[peerId];
-           }
-
-           if (change.type !== 'removed') {
-             togglePlaceholder(peerId, peer.cameraOn);
-             toggleHandRaiseUI(peerId, !!peer.handRaised);
-           }
-        }
-      });
-    });
+    // 👇 Trigger the shared mesh engine
+    startParticipantListener(roomId, userId);
 
     // Listen for Teacher's Mute All Command
     let lastMuteTrigger = roomData.muteAllTrigger || 0; 
@@ -533,6 +483,28 @@ export async function joinClassroom(roomId, userId, userName) {
   } else {
     alert("This room does not exist yet! Please wait for the instructor to start the class, then refresh the page.");
     window.location.href = './dashboard.html';
+  }
+}
+
+// =======================================================================
+// HOST CONTROL: Mute All Students
+// =======================================================================
+export async function triggerMuteAll() {
+  if (!currentRoomId) return;
+  const roomRef = doc(db, 'classrooms', currentRoomId);
+  await updateDoc(roomRef, { muteAllTrigger: Date.now() });
+}
+
+export async function forceMuteLocalMic() {
+  if (localStream) {
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack && audioTrack.enabled) {
+      audioTrack.enabled = false; 
+      const myParticipantRef = doc(db, 'classrooms', currentRoomId, 'participants', currentUserId);
+      await updateDoc(myParticipantRef, { micOn: false });
+      const micBtn = document.getElementById('toggle-mic-btn');
+      if (micBtn) micBtn.style.color = "white"; 
+    }
   }
 }
 

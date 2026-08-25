@@ -56,12 +56,69 @@
         <h1 class="glow-text" style="text-align: left; margin-bottom: 1rem;">Student Analytics</h1>
         <p style="color: var(--text-muted); margin-bottom: 2rem;">Track attendance and participation across all your past live sessions.</p>
 
-        <!-- Dynamic Data Grid -->
-        <div class="card-grid" id="analytics-grid">
-          <!-- JS will populate this -->
+        <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem;">Registered Students</h2>
+        
+        <div style="overflow-x: auto; width: 100%; margin-bottom: 3rem; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 15px; background: rgba(0, 0, 0, 0.2);">
+          
+          <!-- Enforce minimum width to prevent crushing -->
+          <div style="min-width: 750px;">
+            
+            <!-- Directory Header Row -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1.5fr 1fr; padding: 0px 15px 15px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); font-size: 0.8rem; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">
+              <div>User Info</div>
+              
+              <div style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                Grade:
+                <select id="grade-filter-select" style="width: auto; min-width: 60px; margin: 0; padding: 2px 6px; background: transparent; color: var(--neon-cyan); border: 1px solid rgba(0, 243, 255, 0.4); border-radius: 4px; outline: none; cursor: pointer; font-size: 0.75rem; box-shadow: none;">
+                  <option value="All" style="background: #121212;">All</option>
+                </select>
+              </div>
+
+              <div>Contact Email</div>
+              <div style="text-align: right;">Actions</div>
+            </div>
+
+            <!-- The List Container -->
+            <div id="students-directory-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; padding-right: 5px;">
+              <!-- JS will inject the rows here -->
+            </div>
+            
+          </div>
+        </div>
+
+        <!-- 2. Past Classes Grid -->
+        <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem;">Class Attendance Records</h2>
+        <div class="card-grid" id="analytics-classes-grid">
+          <!-- JS will populate -->
         </div>
 
       </main>
+    </div>
+
+    <!-- 3. The Analytics Modal -->
+    <div id="attendance-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+      <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid var(--neon-cyan); box-shadow: var(--glow-cyan); max-width: 500px; width: 90%; text-align: left; max-height: 85vh; display: flex; flex-direction: column;">
+        <h3 class="glow-text" id="attendance-modal-title" style="margin-bottom: 15px; font-size: 1.3rem;">Class Attendance</h3>
+        
+        <!-- Scoreboard -->
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <div style="flex: 1; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid rgba(0, 243, 255, 0.2);">
+            <span id="modal-present-count" style="color: var(--neon-cyan); font-size: 1.5rem; font-weight: bold; display: block;">0</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Present</span>
+          </div>
+          <div style="flex: 1; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid rgba(239, 68, 68, 0.2);">
+            <span id="modal-absent-count" style="color: #ef4444; font-size: 1.5rem; font-weight: bold; display: block;">0</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Absent</span>
+          </div>
+        </div>
+
+        <!-- Scrollable Student List -->
+        <div id="attendance-list-container" style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 5px;">
+          <!-- Student rows injected here -->
+        </div>
+
+        <button id="close-attendance-btn" class="secondary" style="margin-top: 20px; width: 100%; flex-shrink: 0;">Close Analytics</button>
+      </div>
     </div>
     
     <script type="module" src="../src/js/session.js"></script>

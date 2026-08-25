@@ -18,6 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
     listenForPastClasses(currentUserId);
     listenForStudentCount();
   }
+
+  // Close Attendance Modal Logic
+  const closeAttendanceBtn = document.getElementById('close-attendance-btn');
+  if (closeAttendanceBtn) {
+    closeAttendanceBtn.addEventListener('click', () => {
+      document.getElementById('attendance-modal').style.display = 'none';
+    });
+  }
 });
 
 
@@ -225,25 +233,13 @@ function listenForMyClasses(instructorId) {
       const classId = docSnap.id;
       const isLive = data.status === 'live';
       
-      if (data.status === 'scheduled' && data.scheduledTimestamp) {
-        const oneHourInMillis = 60 * 60 * 1000; // 1 Hour in milliseconds
-        const now = Date.now();
-        
-        // Auto-expire logic
-        if (now > (data.scheduledTimestamp + oneHourInMillis)) {
-          console.log(`Class ${classId} has expired. Auto-moving to ended.`);
-          await updateDoc(docSnap.ref, { status: 'ended' });
-          return; 
-        }
-      }
-
       const title = data.title || 'Ad-Hoc Live Session';
       const module = data.module || 'General Session';
       const timeText = isLive ? 'Started Recently' : (data.scheduledTime || 'Scheduled');
       const titleColor = isLive ? 'var(--neon-purple)' : 'var(--neon-cyan)';
 
       const card = document.createElement('div');
-      card.className = 'dash-card'; // Swapped to card class
+      card.className = 'dash-card'; 
 
       const tag = isLive 
         ? `<span class="tag live">● Live Now</span>` 
@@ -427,65 +423,212 @@ if (scheduleForm) {
 }
 
 // =======================================================================
-// ANALYTICS DATA ENGINE (Runs only on class-analytics.html)
+// ANALYTICS DATA ENGINE
 // =======================================================================
+// Global variable to store all students for easy cross-referencing
+window.globalStudentRoster = [];
+
 async function generateAnalytics(instructorId) {
-  const grid = document.getElementById('analytics-grid');
-  if (!grid) return;
-  grid.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">Loading student data...</p>';
+  const studentsList = document.getElementById('students-directory-list');
+  const classesGrid = document.getElementById('analytics-classes-grid');
+    if (!studentsList || !classesGrid) return;
 
+  studentsList.innerHTML = '<p style="color: var(--text-muted); padding: 20px;">Loading student directory...</p>';
+  classesGrid.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">Loading class records...</p>';
   try {
-    const classesRef = collection(db, 'classrooms');
-    const q = query(classesRef, where('hostId', '==', instructorId), where('status', '==', 'ended'));
-    const snapshot = await getDocs(q);
-
-    const studentData = {};
-
-    snapshot.forEach(docSnap => {
-      const classData = docSnap.data();
-      if (classData.attendance) {
-        classData.attendance.forEach(student => {
-          if (!studentData[student.uid]) {
-            studentData[student.uid] = { name: student.name, attendedCount: 0 };
-          }
-          studentData[student.uid].attendedCount++;
-        });
-      }
-    });
-
-    grid.innerHTML = '';
-    const studentKeys = Object.keys(studentData);
+    // 1. Fetch all registered students
+    const usersRef = collection(db, 'users');
+    const qStudents = query(usersRef, where('role', '==', 'student'));
+    const studentSnap = await getDocs(qStudents);
     
-    if (studentKeys.length === 0) {
-      grid.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">No attendance data found yet. Teach a class to see your stats!</p>';
-      return;
+    const studentsList = document.getElementById('students-directory-list');
+    if (!studentsList) return;
+
+    window.globalStudentRoster = [];
+    let uniqueGrades = new Set(); // Stores unique grades dynamically
+
+    if (!studentSnap.empty) {
+      studentSnap.forEach(docSnap => {
+        const student = docSnap.data();
+        student.uid = docSnap.id;
+        window.globalStudentRoster.push(student);
+        if (student.grade) uniqueGrades.add(student.grade);
+      });
     }
 
-    studentKeys.forEach(uid => {
-      const student = studentData[uid];
-      const card = document.createElement('div');
-      card.className = 'dash-card';
-      
-      card.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-          <div class="avatar" style="background: var(--neon-cyan); color: var(--bg-base); width: 60px; height: 60px; font-size: 2rem;">
-            ${student.name.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <h3 style="color: white; margin: 0; font-size: 1.3rem;">${student.name}</h3>
-            <span class="tag" style="background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); border: 1px solid rgba(0, 243, 255, 0.5); margin-top: 5px;">Student</span>
-          </div>
-        </div>
-        <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-          <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0;">Total Classes Attended:</p>
-          <strong style="color: var(--neon-purple); font-size: 2rem; display: block; margin-top: 5px;">${student.attendedCount}</strong>
-        </div>
-      `;
-      grid.appendChild(card);
-    });
+    // Populate the dropdown menu with whatever grades actually exist in your database
+    const gradeFilterSelect = document.getElementById('grade-filter-select');
+    if (gradeFilterSelect) {
+      gradeFilterSelect.innerHTML = '<option value="All" style="background: #121212;">All</option>';
+      uniqueGrades.forEach(grade => {
+        gradeFilterSelect.innerHTML += `<option value="${grade}" style="background: #121212;">${grade}</option>`;
+      });
+
+      // Listen for the teacher clicking a new filter!
+      gradeFilterSelect.addEventListener('change', (e) => {
+        window.renderStudentDirectory(e.target.value);
+      });
+    }
+
+    // Draw the initial list showing everyone
+    window.renderStudentDirectory('All');
+
+    // 2. Fetch all ended classes for this instructor
+    const classesRef = collection(db, 'classrooms');
+    const qClasses = query(classesRef, where('hostId', '==', instructorId), where('status', '==', 'ended'));
+    const classSnap = await getDocs(qClasses);
+
+    classesGrid.innerHTML = '';
+
+    if (classSnap.empty) {
+      classesGrid.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">No past classes found. Complete a live session to see analytics.</p>';
+    } else {
+      classSnap.forEach(docSnap => {
+        const classData = docSnap.data();
+        const classId = docSnap.id;
+        const title = classData.title || 'Ad-Hoc Session';
+        const module = classData.module || 'General';
+        
+        // Safely package the attendance array to send it to the button click
+        const attendanceData = encodeURIComponent(JSON.stringify(classData.attendance || []));
+        const safeTitle = title.replace(/'/g, "\\'");
+
+        const card = document.createElement('div');
+        card.className = 'dash-card';
+        card.innerHTML = `
+          <span class="tag" style="background: rgba(255,255,255,0.1); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.2);">Ended</span>
+          <h3 style="color: white; margin-top: 15px; margin-bottom: 10px;">${title}</h3>
+          <p style="font-size: 0.9rem; margin-bottom: 20px; color: var(--neon-cyan);">${module}</p>
+          
+          <button style="width: 100%; margin-top: auto;" onclick="openAttendanceModal('${safeTitle}', '${attendanceData}')">
+            📊 View Analytics
+          </button>
+        `;
+        classesGrid.appendChild(card);
+      });
+    }
 
   } catch (error) {
     console.error("Error generating analytics:", error);
-    grid.innerHTML = '<p style="color: #ff3b30; grid-column: 1/-1;">Error loading data. Check console.</p>';
+    studentsGrid.innerHTML = '<p style="color: #ff3b30; grid-column: 1/-1;">Error loading data.</p>';
+    classesGrid.innerHTML = '<p style="color: #ff3b30; grid-column: 1/-1;">Error loading data.</p>';
   }
 }
+
+// =======================================================================
+// DIRECTORY RENDER ENGINE (Filtering)
+// =======================================================================
+window.renderStudentDirectory = (filterGrade) => {
+  const studentsList = document.getElementById('students-directory-list');
+  if (!studentsList) return;
+
+  studentsList.innerHTML = ''; // Clear the current list
+
+  // Filter the global roster based on the dropdown choice
+  const filteredRoster = filterGrade === 'All' 
+    ? window.globalStudentRoster 
+    : window.globalStudentRoster.filter(s => s.grade === filterGrade);
+
+  if (filteredRoster.length === 0) {
+    studentsList.innerHTML = '<p style="color: var(--text-muted); padding: 20px;">No students found for this filter.</p>';
+    return;
+  }
+
+  // Draw the rows for the filtered students
+  filteredRoster.forEach(student => {
+    const gradeText = student.grade || 'Unassigned';
+    const emailText = student.email || 'No email provided';
+
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display: grid; 
+      grid-template-columns: 2fr 1fr 1.5fr 1fr; 
+      align-items: center; 
+      background: var(--bg-surface); 
+      padding: 10px 15px; 
+      border-radius: 8px; 
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: all 0.2s ease;
+    `;
+
+    row.onmouseenter = () => { row.style.boxShadow = 'var(--glow-cyan)'; row.style.borderColor = 'rgba(0, 243, 255, 0.4)'; };
+    row.onmouseleave = () => { row.style.boxShadow = 'none'; row.style.borderColor = 'rgba(255,255,255,0.05)'; };
+
+    row.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="avatar" style="background: rgba(0, 243, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); width: 35px; height: 35px; font-size: 1rem; font-weight: bold;">
+          ${student.first_name.charAt(0).toUpperCase()}
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+          <h3 style="color: white; margin: 0; font-size: 0.95rem;">${student.first_name} ${student.last_name || ''}</h3>
+          <span style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Registered User</span>
+        </div>
+      </div>
+      <div>
+        <span class="tag" style="background: rgba(188, 19, 254, 0.1); color: var(--neon-purple); border: 1px solid rgba(188, 19, 254, 0.3); padding: 3px 8px; font-size: 0.75rem;">
+          ${gradeText}
+        </span>
+      </div>
+      <div style="color: var(--text-muted); font-size: 0.85rem;">
+        ${emailText}
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+         <button class="secondary" style="padding: 6px 10px; margin: 0; min-width: auto; font-size: 0.85rem; border-color: rgba(0, 243, 255, 0.3); color: var(--neon-cyan);" onclick="alert('View Student Profile: ${student.first_name}')">
+           <i class="fa-solid fa-magnifying-glass"></i>
+         </button>
+         <button class="secondary" style="padding: 6px 10px; margin: 0; min-width: auto; font-size: 0.85rem; border-color: rgba(188, 19, 254, 0.3); color: var(--neon-purple);" onclick="window.location.href='mailto:${emailText}'">
+           <i class="fa-solid fa-envelope"></i>
+         </button>
+         <button class="secondary" style="padding: 6px 10px; margin: 0; min-width: auto; font-size: 0.85rem; border-color: rgba(239, 68, 68, 0.3); color: #ef4444;" onclick="alert('Student deletion requires Admin privileges.')">
+           <i class="fa-solid fa-trash"></i>
+         </button>
+      </div>
+    `;
+    studentsList.appendChild(row);
+  });
+};
+
+// =======================================================================
+// MODAL POPULATOR LOGIC
+// =======================================================================
+window.openAttendanceModal = (title, encodedAttendance) => {
+  const modal = document.getElementById('attendance-modal');
+  if (!modal) return;
+
+  // Unpackage the attendance array the button sent us
+  const attendanceList = JSON.parse(decodeURIComponent(encodedAttendance));
+  const attendedUids = attendanceList.map(s => s.uid);
+
+  document.getElementById('attendance-modal-title').textContent = `Analytics: ${title}`;
+  
+  const container = document.getElementById('attendance-list-container');
+  container.innerHTML = '';
+
+  let presentCount = 0;
+  let absentCount = 0;
+
+  // Loop through ALL registered students and check if they attended this specific class
+  window.globalStudentRoster.forEach(student => {
+    const isPresent = attendedUids.includes(student.uid);
+    
+    if (isPresent) presentCount++;
+    else absentCount++;
+
+    const statusIcon = isPresent ? '✅' : '❌';
+    const statusColor = isPresent ? 'var(--neon-cyan)' : '#ef4444';
+    const statusText = isPresent ? 'Present' : 'Absent';
+
+    const row = document.createElement('div');
+    row.style.cssText = `display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; border-left: 3px solid ${statusColor};`;
+    row.innerHTML = `
+      <span style="color: white; font-weight: 500;">${student.first_name} ${student.last_name || ''}</span>
+      <span style="color: ${statusColor}; font-size: 0.9rem;">${statusIcon} ${statusText}</span>
+    `;
+    container.appendChild(row);
+  });
+
+  document.getElementById('modal-present-count').textContent = presentCount;
+  document.getElementById('modal-absent-count').textContent = absentCount;
+
+  modal.style.display = 'flex';
+};

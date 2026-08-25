@@ -8,7 +8,7 @@ import { doc, getDoc } from "firebase/firestore";
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     sessionStorage.setItem("currentUID", user.uid);
-    
+    sessionStorage.setItem("userEmail", user.email);
     // Only attempt to fetch profile data if we are on a dashboard page
     const topBarNameEl = document.getElementById('topBarName');
     const userInitEl = document.getElementById('userInit');

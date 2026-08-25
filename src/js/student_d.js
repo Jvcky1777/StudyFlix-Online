@@ -1,16 +1,28 @@
-// src/js/student_d.js
-
 // 1. Import initialized instances from our central config
-import { db } from './firebase.js'; // auth is in session.js handled
+import { db } from './firebase.js'; // Auth stays out!
 
 // 2. Import required SDK functions
 import { collection, query, where, doc, getDoc, onSnapshot } from "firebase/firestore";
 
 // 3. Initialize Dashboard Data
-document.addEventListener('DOMContentLoaded', () => {
-  // session.js handles the UI, so we just fire the data listeners!
+document.addEventListener('DOMContentLoaded', async () => {
+  const currentUserId = sessionStorage.getItem("currentUID");
+  if (!currentUserId) return;
+
+  // Fetch the student's grade level for the stats box
+  try {
+    const userRef = doc(db, 'users', currentUserId);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      const gradeEl = document.getElementById('stat-grade');
+      if (gradeEl) gradeEl.textContent = userSnap.data().grade || 'N/A';
+    }
+  } catch (error) {
+    console.error("Error fetching student profile:", error);
+  }
+
   listenForClasses();
-  listenForPastClasses();
+  listenForPastClasses(currentUserId); // Pass the ID so we can check attendance!
 });
 
 // =======================================================================
@@ -22,7 +34,6 @@ const modalCancelBtn = document.getElementById('modal-cancel-btn');
 const modalJoinBtn = document.getElementById('modal-join-btn');
 const roomCodeInput = document.getElementById('room-code-input');
 
-// 1. Open Modal when clicking "Join Class"
 if (joinLiveClassBtn && roomModal) {
   joinLiveClassBtn.addEventListener('click', () => {
     roomModal.style.display = 'flex';
@@ -33,14 +44,12 @@ if (joinLiveClassBtn && roomModal) {
   });
 }
 
-// 2. Close Modal on Cancel
 if (modalCancelBtn && roomModal) {
   modalCancelBtn.addEventListener('click', () => {
     roomModal.style.display = 'none';
   });
 }
 
-// 3. Verify Room Code in Firestore and Route Accordingly
 if (modalJoinBtn && roomCodeInput) {
   modalJoinBtn.addEventListener('click', async () => {
     const roomCode = roomCodeInput.value.trim();
@@ -58,19 +67,16 @@ if (modalJoinBtn && roomCodeInput) {
       const roomSnap = await getDoc(roomRef);
 
       if (!roomSnap.exists()) {
-        // Room does not exist -> Go to Class Not Found page
         window.location.href = './class-not-found.html';
         return;
       }
 
       const roomData = roomSnap.data();
       if (roomData.status === 'ended') {
-        // Room has ended -> Go to Session Ended page
         window.location.href = './session-ended.html';
         return;
       }
 
-      // Valid active room -> Enter the live room
       window.location.href = `./classroom-live.html?room=${roomCode}`;
 
     } catch (error) {
@@ -91,6 +97,10 @@ function listenForClasses() {
   const q = query(classesRef, where('status', 'in', ['live', 'scheduled']));
 
   onSnapshot(q, (snapshot) => {
+    
+    const upcomingStatEl = document.getElementById('stat-upcoming');
+    if (upcomingStatEl) upcomingStatEl.textContent = snapshot.size;
+    
     const grid = document.getElementById('student-classes-grid');
     if (!grid) return;
     grid.innerHTML = ''; // Clear out the old grid on every update
@@ -105,7 +115,6 @@ function listenForClasses() {
       const classId = docSnap.id; // The room code
       const isLive = data.status === 'live';
       
-      // Fallbacks in case the teacher started an ad-hoc room without titles
       const title = data.title || 'Ad-Hoc Live Session';
       const module = data.module || 'General Session';
       const timeText = isLive ? 'Started Recently' : (data.scheduledTime || 'Scheduled');
@@ -118,14 +127,45 @@ function listenForClasses() {
         : `<span class="tag upcoming">Upcoming</span>`;
       
       const titleColor = isLive ? 'var(--neon-purple)' : 'var(--neon-cyan)';
-      
-      // Sanitize the title just in case it has quotes in it
       const safeTitle = title.replace(/'/g, "\\'"); 
 
-      // Inject the dynamic ID and onclick listener into the scheduled button
-      const actionBtn = isLive
-        ? `<button class="secondary" onclick="openJoinModal('${classId}')">Join Class</button>`
-        : `<button id="remind-btn-${classId}" style="border-color: rgba(255,255,255,0.2); color: var(--text-main);" onclick="toggleReminder('${classId}', '${safeTitle}', ${data.scheduledTimestamp})">🔔 Set Reminder</button>`;
+      // 1. MEMORY FIX: Check local browser memory to see if the button was clicked previously
+      const savedReminders = JSON.parse(localStorage.getItem('activeReminders') || '[]');
+      const isReminded = savedReminders.includes(classId);
+
+      // 2. TIMEOUT FIX: Check if 1 hour has passed since the class was scheduled/created
+      const oneHourInMillis = 60 * 60 * 1000; 
+      const now = Date.now();
+      let isLockedOut = false;
+
+      if (data.scheduledTimestamp) {
+        if (now > data.scheduledTimestamp + oneHourInMillis) {
+          isLockedOut = true;
+        }
+      } else if (data.createdAt) {
+        // Fallback calculation for ad-hoc instant classes
+        const createdMillis = data.createdAt.toMillis ? data.createdAt.toMillis() : (data.createdAt.seconds * 1000);
+        if (now > createdMillis + oneHourInMillis) {
+          isLockedOut = true;
+        }
+      }
+
+      // 3. Render the correct button based on Time, Live Status, and Memory
+      let actionBtn = '';
+      if (isLockedOut) {
+        // Render the LOCKED OUT button
+        actionBtn = `<button class="secondary" disabled style="border-color: #ef4444; color: #ef4444; opacity: 0.6; cursor: not-allowed;">⛔ Unavailable (Late)</button>`;
+      } else if (isLive) {
+        actionBtn = `<button class="secondary" onclick="openJoinModal('${classId}')">Join Class</button>`;
+      } else {
+        if (isReminded) {
+          // Render as ACTIVE REMINDER
+          actionBtn = `<button id="remind-btn-${classId}" style="background: var(--neon-cyan); color: var(--bg-base); box-shadow: var(--glow-cyan); border-color: transparent;" onclick="toggleReminder('${classId}', '${safeTitle}', ${data.scheduledTimestamp})">✅ Reminder Set</button>`;
+        } else {
+          // Render as DEFAULT REMINDER
+          actionBtn = `<button id="remind-btn-${classId}" style="border-color: rgba(255,255,255,0.2); color: var(--text-main);" onclick="toggleReminder('${classId}', '${safeTitle}', ${data.scheduledTimestamp})">🔔 Set Reminder</button>`;
+        }
+      }
 
       card.innerHTML = `
         ${tag}
@@ -139,22 +179,20 @@ function listenForClasses() {
   });
 }
 
-// Global function so inline HTML onclick buttons can trigger the modal
 window.openJoinModal = (roomId) => {
   const roomModal = document.getElementById('room-modal');
   const roomCodeInput = document.getElementById('room-code-input');
   if (roomModal) roomModal.style.display = 'flex';
   if (roomCodeInput) {
-    roomCodeInput.value = roomId; // Auto-fill the code!
+    roomCodeInput.value = roomId; 
   }
 };
 
 // =======================================================================
 // PAST CLASS LISTENER
 // =======================================================================
-function listenForPastClasses() {
+function listenForPastClasses(studentId) {
   const classesRef = collection(db, 'classrooms');
-  // Fetch ONLY classes that have properly ended
   const q = query(classesRef, where('status', '==', 'ended'));
 
   onSnapshot(q, (snapshot) => {
@@ -162,6 +200,7 @@ function listenForPastClasses() {
     if (!grid) return;
     grid.innerHTML = ''; 
 
+    let attendedCount = 0;
     if (snapshot.empty) {
       grid.innerHTML = '<p style="color: var(--text-muted); grid-column: 1 / -1;">No previous classes available.</p>';
       return;
@@ -172,10 +211,14 @@ function listenForPastClasses() {
       const title = data.title || 'Ad-Hoc Live Session';
       const module = data.module || 'General Session';
 
+
+      if (data.attendance && data.attendance.some(student => student.uid === studentId)) {
+        attendedCount++;
+      }
+
       const card = document.createElement('div');
       card.className = 'dash-card';
       
-      // Dim the card visually and disable clicking so it looks like history
       card.style.opacity = '0.5'; 
       card.style.pointerEvents = 'none'; 
 
@@ -188,6 +231,8 @@ function listenForPastClasses() {
       `;
       grid.appendChild(card);
     });
+    const attendedStatEl = document.getElementById('stat-attended');
+    if (attendedStatEl) attendedStatEl.textContent = attendedCount;
   });
 }
 
@@ -212,55 +257,57 @@ function showToast(message) {
   }, 3000);
 }
 
-// Global object to track timers so we can cancel them if they toggle it off
 window.reminderTimeouts = {};
 
 window.toggleReminder = async (classId, className, scheduledTimestamp) => {
   const btn = document.getElementById(`remind-btn-${classId}`);
   if (!btn) return;
 
-  // ==========================================
-  // SCENARIO 1: TURNING THE REMINDER ON
-  // ==========================================
+  let savedReminders = JSON.parse(localStorage.getItem('activeReminders') || '[]');
+
   if (btn.textContent.includes('Set Reminder')) {
     
-    // 1. Update the UI visually
+    // 👇 MEMORY FIX: Save the class ID
+    if (!savedReminders.includes(classId)) {
+      savedReminders.push(classId);
+      localStorage.setItem('activeReminders', JSON.stringify(savedReminders));
+    }
+
     btn.innerHTML = '✅ Reminder Set';
     btn.style.background = 'var(--neon-cyan)'; 
     btn.style.color = 'var(--bg-base)'; 
     btn.style.boxShadow = 'var(--glow-cyan)';
+    btn.style.borderColor = 'transparent';
     showToast(`🔔 We'll remind you before "${className}" starts!`);
 
-    // 2. THE EMAILJS ROUTE (Background Task)
     try {
-      await emailjs.send(
-        import.meta.env.VITE_EMAILJS_SERVICE_ID, 
-        import.meta.env.VITE_EMAILJS_TEMPLATE_ID, 
-        {
-          to_email: auth.currentUser.email,
-          class_name: className,
-          message: `This is a reminder that your live session for ${className} is starting soon! Log into your dashboard to join the room.`
-        }, 
-        import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-      );
-      console.log("Email reminder queued successfully.");
+      const userEmail = sessionStorage.getItem("userEmail"); // 👈 NEW: Read email safely
+      
+      if (userEmail) {
+        await emailjs.send(
+          import.meta.env.VITE_EMAILJS_SERVICE_ID, 
+          import.meta.env.VITE_EMAILJS_TEMPLATE_ID, 
+          {
+            to_email: userEmail, 
+            class_name: className,
+            message: `This is a reminder that your live session for ${className} is starting soon! Log into your dashboard to join the room.`
+          }, 
+          import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+        );
+      }
     } catch (error) {
       console.error("EmailJS failed to send:", error);
     }
 
-    // 3. THE WEB PUSH ROUTE (Device Notification)
     if ("Notification" in window) {
       let perm = Notification.permission;
       if (perm !== "granted" && perm !== "denied") {
         perm = await Notification.requestPermission();
       }
-
       if (perm === "granted") {
-        // Calculate the exact milliseconds until 15 minutes before the class
         const timeUntilClass = scheduledTimestamp - Date.now();
         const timeUntilReminder = timeUntilClass - (15 * 60 * 1000); 
 
-        // If the class is more than 15 minutes away, set the timer
         if (timeUntilReminder > 0) {
           window.reminderTimeouts[classId] = setTimeout(() => {
             new Notification("Classroom Live 🔴", {
@@ -268,27 +315,24 @@ window.toggleReminder = async (classId, className, scheduledTimestamp) => {
               icon: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
             });
           }, timeUntilReminder);
-          console.log(`Push notification scheduled for 15 mins before ${className}`);
         }
       }
     }
-
-  // ==========================================
-  // SCENARIO 2: CANCELLING THE REMINDER
-  // ==========================================
   } else {
-    // 1. Revert the UI
+    // 👇 MEMORY FIX: Remove the class ID
+    savedReminders = savedReminders.filter(id => id !== classId);
+    localStorage.setItem('activeReminders', JSON.stringify(savedReminders));
+
     btn.innerHTML = '🔔 Set Reminder';
     btn.style.background = 'transparent'; 
     btn.style.color = 'var(--text-main)'; 
     btn.style.boxShadow = 'none';
+    btn.style.borderColor = 'rgba(255,255,255,0.2)';
     showToast(`🔕 Reminder cancelled for "${className}".`);
 
-    // 2. Cancel the pending Push Notification timer
     if (window.reminderTimeouts[classId]) {
       clearTimeout(window.reminderTimeouts[classId]);
       delete window.reminderTimeouts[classId];
-      console.log("Push notification timer cancelled.");
     }
   }
 };
