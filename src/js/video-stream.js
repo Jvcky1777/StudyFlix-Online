@@ -46,9 +46,16 @@ function attachVolumeMeter(stream, wrapperId, isInstructor) {
   analyser.smoothingTimeConstant = 0.6; 
 
   try {
-    const clonedStream = new MediaStream(stream.getAudioTracks());
-    const source = sharedAudioCtx.createMediaStreamSource(stream);
-    source.connect(analyser);
+    // Explicitly clone the track, and feed the CLONE into the visualizer
+    const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length > 0) {
+      // 1. Create a true duplicate of the microphone track
+      const clonedStream = new MediaStream([audioTracks[0].clone()]);
+      
+      // 2. Feed the duplicate (clonedStream) to the visualizer, NOT the original stream!
+      const source = sharedAudioCtx.createMediaStreamSource(clonedStream);
+      source.connect(analyser);
+    }
   } catch (e) {
     console.warn("Could not connect audio stream to analyzer:", e);
     return;
