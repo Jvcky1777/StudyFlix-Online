@@ -369,10 +369,16 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
   } else {
     onSnapshot(signalDoc, async (snapshot) => {
       const data = snapshot.data();
+     
       if (!pc.currentRemoteDescription && data && data.offer) {
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-        
-        // 🛑 ARCHITECTURE FIX 2: The CALLEE must attach tracks AFTER the pipelines arrive from the offer!
+        const transceivers = pc.getTransceivers();
+
+        transceivers.forEach(t => {
+          t.direction = 'sendrecv';
+        });
+
+        // The CALLEE must attach tracks AFTER the pipelines arrive from the offer!
         if (activeStream) {
           const videoTrack = activeStream.getVideoTracks()[0];
           const audioTrack = activeStream.getAudioTracks()[0];
