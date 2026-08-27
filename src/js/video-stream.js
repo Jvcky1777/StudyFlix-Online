@@ -313,7 +313,7 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
   const localVideoEl = document.getElementById('local-video');
   const activeStream = localVideoEl ? localVideoEl.srcObject : null;
 
-  // 🛑 ARCHITECTURE FIX 1: Only the CALLER generates the initial pipelines.
+  //  Only the CALLER generates the initial pipelines.
   if (isCaller) {
     const videoTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
     const audioTransceiver = pc.addTransceiver('audio', { direction: 'sendrecv' });
@@ -388,17 +388,19 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
      
       if (!pc.currentRemoteDescription && data && data.offer) {
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        
+        // 1. Get the transceivers EXACTLY ONCE
         const transceivers = pc.getTransceivers();
 
+        // 2. Force pipelines open so the mic isn't blocked
         transceivers.forEach(t => {
           t.direction = 'sendrecv';
         });
 
-        // The CALLEE must attach tracks AFTER the pipelines arrive from the offer!
+        // 3. Attach hardware if available
         if (activeStream) {
           const videoTrack = activeStream.getVideoTracks()[0];
           const audioTrack = activeStream.getAudioTracks()[0];
-          const transceivers = pc.getTransceivers();
           
           const vT = transceivers.find(t => t.receiver.track.kind === 'video');
           const aT = transceivers.find(t => t.receiver.track.kind === 'audio');
@@ -407,6 +409,7 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
           if (audioTrack && aT) await aT.sender.replaceTrack(audioTrack);
         }
 
+        // 4. Send the connection answer back to the Teacher
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await updateDoc(signalDoc, { answer: { type: answer.type, sdp: answer.sdp } });
