@@ -46,6 +46,7 @@ function attachVolumeMeter(stream, wrapperId, isInstructor) {
   analyser.smoothingTimeConstant = 0.6; 
 
   try {
+    const clonedStream = new MediaStream(stream.getAudioTracks());
     const source = sharedAudioCtx.createMediaStreamSource(stream);
     source.connect(analyser);
   } catch (e) {
@@ -142,8 +143,10 @@ async function initializeMediaIfNeeded() {
       const audioTrack = localStream.getAudioTracks()[0];
 
       const transceivers = pc.getTransceivers();
-      const videoTransceiver = transceivers[0]; 
-      const audioTransceiver = transceivers[1]; 
+      
+      //Find the correct channels dynamically!
+      const videoTransceiver = transceivers.find(t => t.receiver.track.kind === 'video'); 
+      const audioTransceiver = transceivers.find(t => t.receiver.track.kind === 'audio'); 
 
       if (videoTrack && videoTransceiver) await videoTransceiver.sender.replaceTrack(videoTrack);
       if (audioTrack && audioTransceiver) await audioTransceiver.sender.replaceTrack(audioTrack);
@@ -325,6 +328,17 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
 
   pc.onicecandidate = (event) => {
     if (event.candidate) addDoc(isCaller ? callerCandidates : calleeCandidates, event.candidate.toJSON());
+  };
+
+  // Monitor the actual network connection health
+  pc.oniceconnectionstatechange = () => {
+    console.log(`Peer ${peerId} connection state:`, pc.iceConnectionState);
+    
+    if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+      console.warn(`Connection lost with peer ${peerId}. Attempting to recover...`);
+      // Here you could trigger a UI function like showToast("Student connection lost")
+      togglePlaceholder(peerId, false); // Instantly turn off their frozen camera frame
+    }
   };
 
   if (isCaller) {

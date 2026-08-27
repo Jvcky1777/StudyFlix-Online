@@ -72,3 +72,15 @@ window.logoutUser = () => {
     console.error("Error signing out:", error);
   });
 };
+
+// =======================================================================
+// 4. GLOBAL ERROR BOUNDARY (The Safety Net)
+// =======================================================================
+window.addEventListener('error', (event) => {
+  console.error("🚨 Global App Error Caught:", event.message, "at", event.filename, ":", event.lineno);
+  // Optional: showToast("Something went wrong. Please refresh the page.");
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.warn("⚠️ Unhandled Background Task Failed:", event.reason);
+});
