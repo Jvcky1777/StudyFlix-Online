@@ -305,7 +305,7 @@ async function stopScreenShare() {
 // =======================================================================
 // PHASE 3 THE ENGINE: The Mesh Connection Builder
 // =======================================================================
-async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
+async function setupPeerConnection(roomId, myId, peerId, isCaller) {
   const pc = new RTCPeerConnection(servers);
   peerConnections[peerId] = pc;
   remoteStreams[peerId] = new MediaStream();
@@ -341,9 +341,10 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
     
     const remoteVideo = document.getElementById(`remote-video-${peerId}`);
     if (remoteVideo) {
-      if (remoteVideo.srcObject !== remoteStreams[peerId]) {
-        remoteVideo.srcObject = remoteStreams[peerId];
-      }
+      // 🛑 FIX 1: The DOM Refresh. Force the browser to recognize the incoming audio track.
+      remoteVideo.srcObject = null; 
+      remoteVideo.srcObject = remoteStreams[peerId];
+      
       remoteVideo.play().catch(e => console.log("Video auto-play delayed:", e));
     }
     
@@ -351,9 +352,6 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
       togglePlaceholder(peerId, true); 
     };
 
-    if (event.track.kind === 'audio') {
-      attachVolumeMeter(remoteStreams[peerId], `remote-wrapper-${peerId}`, peerRole === 'instructor');
-    }
   };
 
   const signalDocId = isCaller ? `${myId}_${peerId}` : `${peerId}_${myId}`;
@@ -448,7 +446,7 @@ function startParticipantListener(roomId, myUserId) {
          if (change.type === 'added') {
             addRemoteUserCard(peerId, peer.name, peer.role); 
             const isCaller = myUserId > peerId;
-            setupPeerConnection(roomId, myUserId, peerId, isCaller, peer.role);
+            setupPeerConnection(roomId, myUserId, peerId, isCaller);
          }
 
          if (change.type === 'removed') {
