@@ -485,7 +485,7 @@ async function generateAnalytics(instructorId) {
     } else {
       classSnap.forEach(docSnap => {
         const classData = docSnap.data();
-        const classId = docSnap.id;
+
         const title = classData.title || 'Ad-Hoc Session';
         const module = classData.module || 'General';
         
@@ -510,7 +510,7 @@ async function generateAnalytics(instructorId) {
 
   } catch (error) {
     console.error("Error generating analytics:", error);
-    studentsGrid.innerHTML = '<p style="color: #ff3b30; grid-column: 1/-1;">Error loading data.</p>';
+    studentsList.innerHTML = '<p style="color: #ff3b30; grid-column: 1/-1;">Error loading data.</p>';
     classesGrid.innerHTML = '<p style="color: #ff3b30; grid-column: 1/-1;">Error loading data.</p>';
   }
 }

@@ -151,7 +151,7 @@ function listenForClasses() {
       }
 
       // 3. Render the correct button based on Time, Live Status, and Memory
-      let actionBtn = '';
+      let actionBtn;
       if (isLockedOut) {
         // Render the LOCKED OUT button
         actionBtn = `<button class="secondary" disabled style="border-color: #ef4444; color: #ef4444; opacity: 0.6; cursor: not-allowed;">⛔ Unavailable (Late)</button>`;
@@ -284,7 +284,7 @@ window.toggleReminder = async (classId, className, scheduledTimestamp) => {
       const userEmail = sessionStorage.getItem("userEmail"); // 👈 NEW: Read email safely
       
       if (userEmail) {
-        await emailjs.send(
+        await window.emailjs.send(
           import.meta.env.VITE_EMAILJS_SERVICE_ID, 
           import.meta.env.VITE_EMAILJS_TEMPLATE_ID, 
           {
@@ -319,7 +319,7 @@ window.toggleReminder = async (classId, className, scheduledTimestamp) => {
       }
     }
   } else {
-    // 👇 MEMORY FIX: Remove the class ID
+    // MEMORY FIX: Remove the class ID
     savedReminders = savedReminders.filter(id => id !== classId);
     localStorage.setItem('activeReminders', JSON.stringify(savedReminders));
 
