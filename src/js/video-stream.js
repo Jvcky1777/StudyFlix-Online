@@ -294,19 +294,31 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
   peerConnections[peerId] = pc;
   remoteStreams[peerId] = new MediaStream();
 
-  const videoTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
-  const audioTransceiver = pc.addTransceiver('audio', { direction: 'sendrecv' });
-
   const localVideoEl = document.getElementById('local-video');
   const activeStream = localVideoEl ? localVideoEl.srcObject : null;
 
-  if (activeStream) {
-    const videoTrack = activeStream.getVideoTracks()[0];
-    const audioTrack = localStream ? localStream.getAudioTracks()[0] : null;
+  // 🛑 ARCHITECTURE FIX 1: Only the CALLER generates the initial pipelines.
+  if (isCaller) {
+    const videoTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
+    const audioTransceiver = pc.addTransceiver('audio', { direction: 'sendrecv' });
 
-    if (videoTrack) videoTransceiver.sender.replaceTrack(videoTrack);
-    if (audioTrack) audioTransceiver.sender.replaceTrack(audioTrack);
+    // If the caller already has their mic/cam on, attach immediately
+    if (activeStream) {
+      const videoTrack = activeStream.getVideoTracks()[0];
+      const audioTrack = activeStream.getAudioTracks()[0];
+      if (videoTrack) videoTransceiver.sender.replaceTrack(videoTrack);
+      if (audioTrack) audioTransceiver.sender.replaceTrack(audioTrack);
+    }
   }
+
+  // Monitor network connection to drop frozen videos
+  pc.oniceconnectionstatechange = () => {
+    console.log(`Peer ${peerId} connection state:`, pc.iceConnectionState);
+    if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+      console.warn(`Connection lost with peer ${peerId}.`);
+      togglePlaceholder(peerId, false);
+    }
+  };
 
   pc.ontrack = (event) => {
     remoteStreams[peerId].addTrack(event.track);
@@ -337,17 +349,7 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
     if (event.candidate) addDoc(isCaller ? callerCandidates : calleeCandidates, event.candidate.toJSON());
   };
 
-  // Monitor the actual network connection health
-  pc.oniceconnectionstatechange = () => {
-    console.log(`Peer ${peerId} connection state:`, pc.iceConnectionState);
-    
-    if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-      console.warn(`Connection lost with peer ${peerId}. Attempting to recover...`);
-      // Here you could trigger a UI function like showToast("Student connection lost")
-      togglePlaceholder(peerId, false); // Instantly turn off their frozen camera frame
-    }
-  };
-
+  // --- SIGNALING LOGIC ---
   if (isCaller) {
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -369,6 +371,20 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller, peerRole) {
       const data = snapshot.data();
       if (!pc.currentRemoteDescription && data && data.offer) {
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        
+        // 🛑 ARCHITECTURE FIX 2: The CALLEE must attach tracks AFTER the pipelines arrive from the offer!
+        if (activeStream) {
+          const videoTrack = activeStream.getVideoTracks()[0];
+          const audioTrack = activeStream.getAudioTracks()[0];
+          const transceivers = pc.getTransceivers();
+          
+          const vT = transceivers.find(t => t.receiver.track.kind === 'video');
+          const aT = transceivers.find(t => t.receiver.track.kind === 'audio');
+          
+          if (videoTrack && vT) await vT.sender.replaceTrack(videoTrack);
+          if (audioTrack && aT) await aT.sender.replaceTrack(audioTrack);
+        }
+
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await updateDoc(signalDoc, { answer: { type: answer.type, sdp: answer.sdp } });
