@@ -128,22 +128,26 @@ async function initializeMediaIfNeeded() {
   if (localStream) return true;
 
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    // 🛑 NEW: Only request video hardware if the user is an instructor
+    const needsVideo = currentRole === 'instructor';
+    localStream = await navigator.mediaDevices.getUserMedia({ video: needsVideo, audio: true });
     
-    // Start tracks completely muted/hidden
-    localStream.getVideoTracks()[0].enabled = false;
-    localStream.getAudioTracks()[0].enabled = false;
+    // Start tracks completely muted/hidden safely
+    if (localStream.getVideoTracks().length > 0) {
+      localStream.getVideoTracks()[0].enabled = false;
+    }
+    if (localStream.getAudioTracks().length > 0) {
+      localStream.getAudioTracks()[0].enabled = false;
+    }
 
     const localVideo = document.getElementById('local-video');
     if (localVideo) localVideo.srcObject = localStream;
 
-    // Start local visualizer immediately 
     if (!window.localVisualizerStarted) {
       attachVolumeMeter(localStream, 'local-video-wrapper', currentRole === 'instructor');
       window.localVisualizerStarted = true;
     }
 
-    // Plug tracks into any existing connections
     Object.keys(peerConnections).forEach(async (peerId) => {
       const pc = peerConnections[peerId];
       const videoTrack = localStream.getVideoTracks()[0];
@@ -151,7 +155,6 @@ async function initializeMediaIfNeeded() {
 
       const transceivers = pc.getTransceivers();
       
-      //Find the correct channels dynamically!
       const videoTransceiver = transceivers.find(t => t.receiver.track.kind === 'video'); 
       const audioTransceiver = transceivers.find(t => t.receiver.track.kind === 'audio'); 
 
@@ -162,7 +165,7 @@ async function initializeMediaIfNeeded() {
     return true; 
   } catch (error) {
     console.error("Hardware Error:", error);
-    alert("Could not access camera or microphone. Please check your browser permissions.");
+    alert("Could not access microphone. Please check your browser permissions.");
     return false;
   }
 }
@@ -171,6 +174,12 @@ async function initializeMediaIfNeeded() {
 // STEP 1: Toggle the Camera (Independent)
 // =======================================================================
 export async function toggleCamera() {
+  // Strict block for students
+  if (currentRole === 'student') {
+    alert("Camera transmission is restricted for students.");
+    return false;
+  }
+
   const success = await initializeMediaIfNeeded();
   if (!success) return false;
 
@@ -225,6 +234,13 @@ export async function toggleHandRaise() {
 // TOGGLE SCREEN SHARE (The "Swap" Method)
 // =======================================================================
 export async function toggleScreenShare() {
+  
+  if (currentRole === 'student') {
+    alert("Screen sharing is restricted for students.");
+    return false;
+  }
+  
+  
   const localVideo = document.getElementById('local-video');
   const myParticipantRef = doc(db, 'classrooms', currentRoomId, 'participants', currentUserId);
 
