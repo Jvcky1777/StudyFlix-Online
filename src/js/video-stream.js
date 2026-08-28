@@ -313,20 +313,6 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller) {
   const localVideoEl = document.getElementById('local-video');
   const activeStream = localVideoEl ? localVideoEl.srcObject : null;
 
-  //  Only the CALLER generates the initial pipelines.
-  if (isCaller) {
-    const videoTransceiver = pc.addTransceiver('video', { direction: 'sendrecv' });
-    const audioTransceiver = pc.addTransceiver('audio', { direction: 'sendrecv' });
-
-    // If the caller already has their mic/cam on, attach immediately
-    if (activeStream) {
-      const videoTrack = activeStream.getVideoTracks()[0];
-      const audioTrack = activeStream.getAudioTracks()[0];
-      if (videoTrack) videoTransceiver.sender.replaceTrack(videoTrack);
-      if (audioTrack) audioTransceiver.sender.replaceTrack(audioTrack);
-    }
-  }
-
   // Monitor network connection to drop frozen videos
   pc.oniceconnectionstatechange = () => {
     console.log(`Peer ${peerId} connection state:`, pc.iceConnectionState);
@@ -341,7 +327,7 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller) {
     
     const remoteVideo = document.getElementById(`remote-video-${peerId}`);
     if (remoteVideo) {
-      // 🛑 FIX 1: The DOM Refresh. Force the browser to recognize the incoming audio track.
+      // FIX 1: The DOM Refresh. Force the browser to recognize the incoming audio track.
       remoteVideo.srcObject = null; 
       remoteVideo.srcObject = remoteStreams[peerId];
       
@@ -351,7 +337,6 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller) {
     event.track.onunmute = () => {
       togglePlaceholder(peerId, true); 
     };
-
   };
 
   const signalDocId = isCaller ? `${myId}_${peerId}` : `${peerId}_${myId}`;
@@ -365,6 +350,19 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller) {
 
   // --- SIGNALING LOGIC ---
   if (isCaller) {
+    // SYNC FIX 1: Only promise video if the user is the instructor
+    const videoDirection = currentRole === 'instructor' ? 'sendrecv' : 'recvonly';
+    const videoTransceiver = pc.addTransceiver('video', { direction: videoDirection });
+    const audioTransceiver = pc.addTransceiver('audio', { direction: 'sendrecv' });
+
+    // If the caller already has their mic/cam on, attach immediately
+    if (activeStream) {
+      const videoTrack = activeStream.getVideoTracks()[0];
+      const audioTrack = activeStream.getAudioTracks()[0];
+      if (videoTrack) videoTransceiver.sender.replaceTrack(videoTrack);
+      if (audioTrack) audioTransceiver.sender.replaceTrack(audioTrack);
+    }
+
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     await setDoc(signalDoc, { offer: { type: offer.type, sdp: offer.sdp } });
@@ -390,9 +388,13 @@ async function setupPeerConnection(roomId, myId, peerId, isCaller) {
         // 1. Get the transceivers EXACTLY ONCE
         const transceivers = pc.getTransceivers();
 
-        // 2. Force pipelines open so the mic isn't blocked
+        // 2. SYNC FIX 2: Do not promise video if the student has no camera
         transceivers.forEach(t => {
-          t.direction = 'sendrecv';
+          if (t.receiver.track.kind === 'audio') {
+            t.direction = 'sendrecv'; // Always keep audio open
+          } else if (t.receiver.track.kind === 'video') {
+            t.direction = currentRole === 'instructor' ? 'sendrecv' : 'recvonly';
+          }
         });
 
         // 3. Attach hardware if available
