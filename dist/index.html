@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Live</title>
+    
+    <!-- Link to the master theme -->
+
+    <!-- Ensure these classes exist in your global.css, or keep them here -->
+    <style>
+      .view-state {
+        display: none; /* Hides all views by default */
+      }
+      .active-view {
+        display: block; /* Shows the active view */
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-ZPQzwLUc.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-C3vUnrEO.css">
+  </head>
+  <body>
+    <!-- The Screen Saver -->
+    <div id="screensaver" onclick="showAuthOptions()">
+      <h1 class="glow-text">Classroom Live</h1>
+      <p>(Click anywhere to enter)</p>
+    </div>
+
+    <!-- The Choice Page -->
+    <div id="auth-options" class="view-state">
+      <h2 class="glow-text">Welcome</h2>
+      <button onclick="showView('signup-page')">Sign Up</button>
+      <!-- Added the secondary class for purple glow -->
+      <button class="secondary" onclick="showView('signin-page')">Sign In</button>
+    </div>
+
+    <!-- The Sign Up Form -->
+    <div id="signup-page" class="view-state">
+      <h2 class="glow-text">Create Account</h2>
+      <form id="registerForm">
+        <input type="text" id="firstName" placeholder="First Name" required>
+        <input type="text" id="lastName" placeholder="Last Name" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <input type="tel" id="contactNumber" placeholder="Contact Number" required>
+        <select id="grade" required>
+            <option value="" disabled selected>Select Grade</option>
+            <option value="8">Grade 8</option>
+            <option value="9">Grade 9</option>
+            <option value="10">Grade 10</option>
+            <option value="11">Grade 11</option>
+            <option value="12">Grade 12</option>
+            <option value="university">University / Higher Ed</option>
+          </select>
+          <select id="role" required>
+            <option value="" disabled selected>Select Your Role</option>
+            <option value="student">Student</option>
+            <option value="instructor">Instructor / Teacher</option>
+          </select>
+        <button type="submit">Register</button>
+      </form>
+      <br>
+      <button onclick="showView('auth-options')">Back</button>
+    </div>
+
+    <!-- ADDED: The Sign In Page so the Sign In button doesn't crash the app -->
+    <div id="signin-page" class="view-state">
+      <h2 class="glow-text">Welcome Back</h2>
+      <form id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Email" required>
+        <input type="password" id="loginPassword" placeholder="Password" required>
+        
+        <button type="submit" class="secondary">Log In</button>
+      </form>
+      <br>
+      <button onclick="showView('auth-options')">Back</button>
+    </div>
+
+    <script>
+      // Simple UI routing to transition between screens
+      function showAuthOptions() {
+        document.getElementById('screensaver').style.display = 'none';
+        showView('auth-options');
+      }
+
+      function showView(viewId) {
+        // Hide all views first
+        document.querySelectorAll('.view-state').forEach(el => el.classList.remove('active-view'));
+        
+        // Find the targeted view and show it safely
+        const targetView = document.getElementById(viewId);
+        if (targetView) {
+          targetView.classList.add('active-view');
+        } else {
+          console.error("View not found: " + viewId);
+        }
+      }
+
+
+
+    </script>
+  </body>
+</html>
