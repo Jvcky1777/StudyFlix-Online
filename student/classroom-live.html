@@ -24,7 +24,7 @@
             <!-- The Recording Tag and Title -->
             <div style="display: flex; align-items: center;">
                 <div class="tag live">● REC</div>
-                <span style="margin-left: 10px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Java Web Apps & Multithreading</span>
+                <span id="room-title-display" style="margin-left: 10px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Loading Class...</span>
             </div>
         
         </div>
@@ -112,6 +112,20 @@
           window.location.href = './dashboard.html';
           return;
         }
+
+        // 🛑 NEW: Fetch the specific class title from the database
+        const roomRef = doc(db, 'classrooms', roomId);
+        const roomSnap = await getDoc(roomRef);
+        const titleDisplay = document.getElementById('room-title-display');
+        
+        if (roomSnap.exists() && roomSnap.data().title) {
+          titleDisplay.textContent = roomSnap.data().title;
+        } else {
+          // Fallback if the class title is missing
+          titleDisplay.textContent = "Live Session"; 
+        }
+
+
 
         // 1. FETCH IDENTITY -> JOIN ROOM & WIRE CHAT
         onAuthStateChanged(auth, async (user) => {

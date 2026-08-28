@@ -516,7 +516,7 @@ async function generateAnalytics(instructorId) {
 }
 
 // =======================================================================
-// DIRECTORY RENDER ENGINE (Filtering)
+// DIRECTORY RENDER ENGINE (Filtering & Security Masking)
 // =======================================================================
 window.renderStudentDirectory = (filterGrade) => {
   const studentsList = document.getElementById('students-directory-list');
@@ -537,7 +537,16 @@ window.renderStudentDirectory = (filterGrade) => {
   // Draw the rows for the filtered students
   filteredRoster.forEach(student => {
     const gradeText = student.grade || 'Unassigned';
-    const emailText = student.email || 'No email provided';
+    const rawEmail = student.email || '';
+
+    // 🔒 SECURITY FIX: Mask the email for the public UI display
+    let displayEmail = 'No email provided';
+    if (rawEmail.includes('@')) {
+      const [username, domain] = rawEmail.split('@');
+      // Keep the first 3 letters, mask the rest, keep the domain
+      const maskedUser = username.length > 3 ? username.substring(0, 3) + '***' : username + '***';
+      displayEmail = `${maskedUser}@${domain}`;
+    }
 
     const row = document.createElement('div');
     row.style.cssText = `
@@ -569,16 +578,22 @@ window.renderStudentDirectory = (filterGrade) => {
           ${gradeText}
         </span>
       </div>
+      
+      <!-- Display the heavily masked email (e.g. joh***@gmail.com) -->
       <div style="color: var(--text-muted); font-size: 0.85rem;">
-        ${emailText}
+        ${displayEmail}
       </div>
+      
       <div style="display: flex; justify-content: flex-end; gap: 8px;">
          <button class="secondary" style="padding: 6px 10px; margin: 0; min-width: auto; font-size: 0.85rem; border-color: rgba(0, 243, 255, 0.3); color: var(--neon-cyan);" onclick="alert('View Student Profile: ${student.first_name}')">
            <i class="fa-solid fa-magnifying-glass"></i>
          </button>
-         <button class="secondary" style="padding: 6px 10px; margin: 0; min-width: auto; font-size: 0.85rem; border-color: rgba(188, 19, 254, 0.3); color: var(--neon-purple);" onclick="window.location.href='mailto:${emailText}'">
+         
+         <!-- Pass the RAW, real email securely into the mailto action -->
+         <button class="secondary" style="padding: 6px 10px; margin: 0; min-width: auto; font-size: 0.85rem; border-color: rgba(188, 19, 254, 0.3); color: var(--neon-purple);" onclick="window.location.href='mailto:${rawEmail}'">
            <i class="fa-solid fa-envelope"></i>
          </button>
+         
          <button class="secondary" style="padding: 6px 10px; margin: 0; min-width: auto; font-size: 0.85rem; border-color: rgba(239, 68, 68, 0.3); color: #ef4444;" onclick="alert('Student deletion requires Admin privileges.')">
            <i class="fa-solid fa-trash"></i>
          </button>
