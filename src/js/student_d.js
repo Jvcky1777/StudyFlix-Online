@@ -110,7 +110,30 @@ function listenForClasses() {
       return;
     }
 
-    snapshot.forEach((docSnap) => {
+
+    const classesArray = [];
+    snapshot.forEach((docSnap) => classesArray.push(docSnap));
+
+    // 2. Sort the array: Live classes first, then chronological order
+    classesArray.sort((a, b) => {
+      const dataA = a.data();
+      const dataB = b.data();
+
+      // Rule A: Live classes ALWAYS jump to the front
+      if (dataA.status === 'live' && dataB.status !== 'live') return -1;
+      if (dataB.status === 'live' && dataA.status !== 'live') return 1;
+
+      // Rule B: Sort the remaining "upcoming" classes by time
+      const timeA = dataA.scheduledTimestamp || (dataA.createdAt?.toMillis ? dataA.createdAt.toMillis() : 0);
+      const timeB = dataB.scheduledTimestamp || (dataB.createdAt?.toMillis ? dataB.createdAt.toMillis() : 0);
+
+      return timeA - timeB; 
+    });
+
+    // 3. Render the newly sorted array to the dashboard
+    classesArray.forEach((docSnap) => {
+
+      
       const data = docSnap.data();
       const classId = docSnap.id; // The room code
       const isLive = data.status === 'live';
@@ -167,10 +190,13 @@ function listenForClasses() {
         }
       }
 
+      const teacherName = data.teacherName || 'Unknown Instructor';
+
       card.innerHTML = `
         ${tag}
         <h3 style="color: ${titleColor}; margin-bottom: 10px;">${title}</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">${timeText}</p>
+        <p style="color: var(--text-muted); margin-bottom: 5px;">${timeText}</p>
+        <p style="color: var(--neon-cyan); margin-bottom: 15px; font-size: 0.85rem;">Prof. ${teacherName}</p>
         <p style="font-size: 0.9rem; margin-bottom: 20px;">${module}</p>
         ${actionBtn}
       `;
@@ -222,10 +248,12 @@ function listenForPastClasses(studentId) {
       card.style.opacity = '0.5'; 
       card.style.pointerEvents = 'none'; 
 
+      const instructorName = data.instructorName || 'Unknown Instructor';
+
       card.innerHTML = `
         <span class="tag" style="background: rgba(255,255,255,0.1); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.2);">Ended</span>
-        <h3 style="color: var(--text-muted); margin-bottom: 10px;">${title}</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Session Closed</p>
+        <h3 style="color: var(--text-muted); margin-top: 10px; margin-bottom: 5px;">${title}</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 0.85rem;">Prof. ${instructorName}</p>
         <p style="font-size: 0.9rem; margin-bottom: 20px;">${module}</p>
         <button class="secondary" disabled style="opacity: 0.5;">Recording Unavailable</button>
       `;

@@ -88,22 +88,29 @@
           <button id="goLiveBtn" class="btn-large">Go Live Now 🔴</button>
         </div>
 
-        <!-- Schedule Management -->
+        <!-- 1. LIVE CLASSES ROW -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h2 style="text-align: left; margin: 0; font-size: 1.5rem; color: var(--neon-purple); text-shadow: var(--glow-purple);">🔴 Live Now</h2>
+          <button id="clearAllClassesBtn" class="secondary" style="width: auto; padding: 8px 16px; font-size: 0.85rem; margin: 0; border-color: #ef4444; color: #ef4444;">
+            🗑️ Clear All Classes
+          </button>
+        </div>
+        <div class="card-grid" id="teacher-live-schedule-list" style="margin-bottom: 2rem;">
+          <!-- Live classes injected here -->
+        </div>
+
+        <!-- 2. UPCOMING CLASSES ROW -->
         <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem;">Upcoming Scheduled Classes</h2>
-        
-        <!-- Reset/Purge Button -->
-        <button id="clearAllClassesBtn" class="secondary" style="width: auto; padding: 8px 16px; font-size: 0.85rem; margin-top: 0; border-color: #ef4444; color: #ef4444;">
-          🗑️ Clear All Classes
-        </button>
-
-        <div class="card-grid" id="teacher-schedule-list">
-          <!-- Real-time Firestore schedule will appear here -->
+        <div class="card-grid" id="teacher-upcoming-schedule-list" style="margin-bottom: 2rem;">
+          <!-- Scheduled classes injected here -->
         </div>
 
+        <!-- 3. PAST CLASSES ROW -->
+        <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem;">Past Sessions</h2>
         <div class="card-grid" id="teacher-past-schedule-list">
-          <!-- Past sessions will appear here -->
+          <!-- Past sessions injected here -->
         </div>
-
+        
       </main>
     </div>
     <script type="module" src="../src/js/session.js"></script>

@@ -77,15 +77,22 @@
           </div>
         </div>
 
-        <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem;">Your Curriculum</h2>
-
-        <!-- Card Grid (Dynamic injection via JS) -->
-        <div class="card-grid" id="student-classes-grid">
-          <!-- Real-time Firestore classes appear here -->
+        <!-- 1. LIVE CLASSES ROW -->
+        <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem; color: var(--neon-purple); text-shadow: var(--glow-purple);">🔴 Live Now</h2>
+        <div class="card-grid" id="student-live-classes-grid" style="margin-bottom: 2rem;">
+          <!-- Live classes injected here -->
         </div>
 
+        <!-- 2. UPCOMING CLASSES ROW -->
+        <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem;">Upcoming Curriculum</h2>
+        <div class="card-grid" id="student-upcoming-classes-grid" style="margin-bottom: 2rem;">
+          <!-- Scheduled classes injected here -->
+        </div>
+
+        <!-- 3. PAST CLASSES ROW -->
+        <h2 style="text-align: left; margin-bottom: 1rem; font-size: 1.5rem;">Past Classes</h2>
         <div class="card-grid" id="student-past-classes-grid">
-          <!-- Past classes will appear here -->
+          <!-- Ended classes injected here -->
         </div>
 
       </main>

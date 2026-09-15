@@ -98,12 +98,16 @@ if (adhocForm) {
 
     try {
       // Pre-create the room in the database BEFORE entering
+      const topBarNameEl = document.getElementById('topBarName');
+      const teacherNameText = topBarNameEl ? topBarNameEl.textContent.replace(' (Instructor)', '') : 'Instructor';
+      
       const roomRef = doc(db, 'classrooms', roomId);
       
       await setDoc(roomRef, {
         title: title,
         module: module,
         hostId: currentUserId,
+        teacherName: teacherNameText,
         status: 'live',
         createdAt: new Date(),
         liveStartedAt: new Date()
@@ -218,17 +222,34 @@ function listenForMyClasses(instructorId) {
   const q = query(classesRef, where('hostId', '==', instructorId), where('status', 'in', ['live', 'scheduled']));
 
   onSnapshot(q, (snapshot) => {
-    const list = document.getElementById('teacher-schedule-list');
-    if (!list) return;
-    list.innerHTML = '';
-
-    if (snapshot.empty) {
-      list.innerHTML = '<p style="color: var(--text-muted); grid-column: 1 / -1;">You have no upcoming scheduled classes.</p>';
+    const liveList = document.getElementById('teacher-live-schedule-list');
+    const upcomingList = document.getElementById('teacher-upcoming-schedule-list');
+    
+    if (!liveList || !upcomingList) {
+      console.error("Live or Upcoming list container not found in the DOM.");
       return;
     }
 
-    // Iterate through each class document and render its details
-    snapshot.forEach(async (docSnap) => {
+    // Clear old data on every update
+    liveList.innerHTML = '';
+    upcomingList.innerHTML = '';
+
+    let liveCount = 0;
+    let upcomingCount = 0;
+
+    // 1. Move documents into an array
+    const classesArray = [];
+    snapshot.forEach((docSnap) => classesArray.push(docSnap));
+
+    // 2. Sort chronologically
+    classesArray.sort((a, b) => {
+      const timeA = a.data().scheduledTimestamp || (a.data().createdAt?.toMillis ? a.data().createdAt.toMillis() : 0);
+      const timeB = b.data().scheduledTimestamp || (b.data().createdAt?.toMillis ? b.data().createdAt.toMillis() : 0);
+      return timeA - timeB;
+    });
+
+    // 3. Route the sorted cards to the correct containers
+    classesArray.forEach((docSnap) => {
       const data = docSnap.data();
       const classId = docSnap.id;
       const isLive = data.status === 'live';
@@ -262,8 +283,24 @@ function listenForMyClasses(instructorId) {
           🗑️ Delete
         </button>
       `;
-      list.appendChild(card);
+      
+      // Inject into the correct UI row
+      if (isLive) {
+        liveList.appendChild(card);
+        liveCount++;
+      } else {
+        upcomingList.appendChild(card);
+        upcomingCount++;
+      }
     });
+
+    // 4. Handle Empty States
+    if (liveCount === 0) {
+      liveList.innerHTML = '<p style="color: var(--text-muted); grid-column: 1 / -1;">No active live sessions.</p>';
+    }
+    if (upcomingCount === 0) {
+      upcomingList.innerHTML = '<p style="color: var(--text-muted); grid-column: 1 / -1;">You have no upcoming scheduled classes.</p>';
+    }
   });
 }
 
@@ -294,19 +331,24 @@ function listenForPastClasses(instructorId) {
       const title = data.title || 'Ad-Hoc Live Session';
       const module = data.module || 'General Session';
 
+      // 1. Package the attendance data for the modal
+      const attendanceData = encodeURIComponent(JSON.stringify(data.attendance || []));
+      const safeTitle = title.replace(/'/g, "\\'");
+
       const card = document.createElement('div');
       card.className = 'dash-card';
       
-      // Dim the card visually and disable clicking
-      card.style.opacity = '0.5'; 
-      card.style.pointerEvents = 'none'; 
+      // 2. We completely removed the opacity and pointer-events locks here!
 
+      // 3. Match the HTML structure to the Analytics page perfectly
       card.innerHTML = `
         <span class="tag" style="background: rgba(255,255,255,0.1); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.2);">Ended</span>
-        <h3 style="color: var(--text-muted); margin-top: 15px; margin-bottom: 10px;">${title}</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Session Closed</p>
-        <p style="font-size: 0.9rem; margin-bottom: 20px;">${module}</p>
-        <button class="secondary" disabled style="opacity: 0.5;">View Analytics</button>
+        <h3 style="color: white; margin-top: 15px; margin-bottom: 10px;">${title}</h3>
+        <p style="font-size: 0.9rem; margin-bottom: 20px; color: var(--neon-cyan);">${module}</p>
+        
+        <button style="width: 100%; margin-top: auto;" onclick="openAttendanceModal('${safeTitle}', '${attendanceData}')">
+          📊 View Analytics
+        </button>
       `;
       list.appendChild(card);
     });
@@ -316,18 +358,17 @@ function listenForPastClasses(instructorId) {
 // =======================================================================
 // STATS: ACTIVE STUDENTS COUNTER
 // =======================================================================
-function listenForStudentCount() {{}
+function listenForStudentCount() {
+  const studentsRef = collection(db, 'students');
+  const q = query(studentsRef, where('status', '==', 'approved'));
 
-  const studentRef = collection(db, 'students');
-
-  onSnapshot(studentRef, (snapshot) => {
-
->>>>>>> 1ddf7772947a3fc5b19b977140da8ef59b215a2d
+  onSnapshot(q, (snapshot) => {
     const studentStatEl = document.getElementById('stat-students');
     if (studentStatEl) {
-      // snapshot.size automatically returns the number of matching documents!
       studentStatEl.textContent = snapshot.size;
     }
+  }, (error) => {
+    console.error("Error fetching student count:", error);
   });
 }
 
@@ -387,9 +428,14 @@ if (scheduleForm) {
       const roomRef = doc(db, 'classrooms', roomId);
       const timeValue = new Date(time); 
       
+
+      const topBarNameEl = document.getElementById('topBarName');
+      const teacherNameText = topBarNameEl ? topBarNameEl.textContent.replace(' (Instructor)', '') : 'Instructor';
+
       const classData = {
         title: title,
         module: module,
+        teacherName: teacherNameText,
         scheduledTime: timeValue.toLocaleString('en-ZA', { 
           dateStyle: 'medium', 
           timeStyle: 'short' 
@@ -441,13 +487,10 @@ async function generateAnalytics(instructorId) {
   classesGrid.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">Loading class records...</p>';
   try {
     // 1. Fetch all registered students
-    const studentsRef = collection(db, 'students');
-    const studentSnap = await getDocs(studentsRef);
-=======
+
     const studentRef = collection(db, 'students');
     const studentSnap = await getDocs(studentRef);
->>>>>>> 1ddf7772947a3fc5b19b977140da8ef59b215a2d
-    
+
     const studentsList = document.getElementById('students-directory-list');
     if (!studentsList) return;
 
@@ -573,17 +616,10 @@ window.renderStudentDirectory = (filterGrade) => {
     row.innerHTML = `
       <div style="display: flex; align-items: center; gap: 12px;">
         <div class="avatar" style="background: rgba(0, 243, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); width: 35px; height: 35px; font-size: 1rem; font-weight: bold;">
-<<<<<<< HEAD
-          ${student.firstName ? student.firstName.charAt(0).toUpperCase() : '?'}
-        </div>
-        <div style="display: flex; flex-direction: column; align-items: flex-start;">
-          <h3 style="color: white; margin: 0; font-size: 0.95rem;">${student.firstName || 'Unknown'} ${student.surname || ''}</h3>
-=======
           ${student.firstName.charAt(0).toUpperCase()}
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-start;">
           <h3 style="color: white; margin: 0; font-size: 0.95rem;">${student.firstName} ${student.surname || ''}</h3>
->>>>>>> 1ddf7772947a3fc5b19b977140da8ef59b215a2d
           <span style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Registered User</span>
         </div>
       </div>
@@ -650,11 +686,7 @@ window.openAttendanceModal = (title, encodedAttendance) => {
     const row = document.createElement('div');
     row.style.cssText = `display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; border-left: 3px solid ${statusColor};`;
     row.innerHTML = `
-<<<<<<< HEAD
-      <span style="color: white; font-weight: 500;">${student.firstName || 'Unknown'} ${student.surname || ''}</span>
-=======
       <span style="color: white; font-weight: 500;">${student.firstName} ${student.surname || ''}</span>
->>>>>>> 1ddf7772947a3fc5b19b977140da8ef59b215a2d
       <span style="color: ${statusColor}; font-size: 0.9rem;">${statusIcon} ${statusText}</span>
     `;
     container.appendChild(row);

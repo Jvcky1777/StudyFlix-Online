@@ -97,17 +97,21 @@
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 2rem;
-  margin-top: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 15px; 
+  margin-top: 1.5rem;
 }
 
 .dash-card {
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 1.5rem;
+  border-radius: 8px;
+  padding: 12px; /* 50% less padding */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* CRITICAL: Prevents any overlapping elements from spilling out */
   transition: transform 0.3s ease;
+  min-height: 180px; /* Gives the card enough height*/
 }
 
 .dash-card:hover {
@@ -116,6 +120,48 @@
   box-shadow: var(--glow-purple);
 }
 
+* 3. Text Elements (Shrunk & Forced to Wrap) */
+.dash-card h3 {
+  font-size: 0.95rem !important; /* Shrunk title */
+  line-height: 1.2 !important;
+  margin-bottom: 6px !important;
+  word-wrap: break-word; /* CRITICAL: Forces long titles to wrap instead of overlapping */
+}
+
+.dash-card p {
+  font-size: 0.75rem !important; /* Shrunk paragraph text */
+  line-height: 1.2 !important;
+  margin-bottom: 6px !important;
+  word-wrap: break-word;
+}
+
+/* 4. The Tags (Live/Upcoming) */
+.dash-card .tag {
+  font-size: 0.65rem !important;
+  padding: 3px 6px !important;
+  margin-bottom: 8px !important;
+  align-self: flex-start; /* Stops the tag from stretching across the card */
+  white-space: nowrap;
+}
+
+/* 5. Button Containers (Fixes overlapping dual-buttons like Edit/Start) */
+.dash-card > div {
+  display: flex;
+  flex-direction: column; /* Stacks the buttons vertically so they never overlap horizontally */
+  gap: 5px !important;
+  margin-bottom: 5px !important;
+  width: 100%;
+}
+
+/* 6. The Buttons */
+.dash-card button {
+  padding: 6px 8px !important; /* Thinner buttons */
+  font-size: 0.75rem !important;
+  width: 100% !important; /* Forces buttons to fit neatly inside the card width */
+  margin-top: auto; /* Pushes the button to the absolute bottom of the card */
+  white-space: normal; /* Allows button text to wrap if it's too long */
+  line-height: 1.2;
+}
 
 /* =========================================
    DASHBOARD ENHANCEMENTS (UI Polish)
