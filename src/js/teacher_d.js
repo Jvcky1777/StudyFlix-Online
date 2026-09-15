@@ -316,10 +316,13 @@ function listenForPastClasses(instructorId) {
 // =======================================================================
 // STATS: ACTIVE STUDENTS COUNTER
 // =======================================================================
-function listenForStudentCount() {
-  const studentsRef = collection(db, 'students');
+function listenForStudentCount() {{}
 
-  onSnapshot(studentsRef, (snapshot) => {
+  const studentRef = collection(db, 'students');
+
+  onSnapshot(studentRef, (snapshot) => {
+
+>>>>>>> 1ddf7772947a3fc5b19b977140da8ef59b215a2d
     const studentStatEl = document.getElementById('stat-students');
     if (studentStatEl) {
       // snapshot.size automatically returns the number of matching documents!
@@ -428,9 +431,11 @@ if (scheduleForm) {
 window.globalStudentRoster = [];
 
 async function generateAnalytics(instructorId) {
+
   const studentsList = document.getElementById('students-directory-list');
   const classesGrid = document.getElementById('analytics-classes-grid');
-    if (!studentsList || !classesGrid) return;
+  
+  if (!studentsList || !classesGrid) return;
 
   studentsList.innerHTML = '<p style="color: var(--text-muted); padding: 20px;">Loading student directory...</p>';
   classesGrid.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">Loading class records...</p>';
@@ -438,6 +443,10 @@ async function generateAnalytics(instructorId) {
     // 1. Fetch all registered students
     const studentsRef = collection(db, 'students');
     const studentSnap = await getDocs(studentsRef);
+=======
+    const studentRef = collection(db, 'students');
+    const studentSnap = await getDocs(studentRef);
+>>>>>>> 1ddf7772947a3fc5b19b977140da8ef59b215a2d
     
     const studentsList = document.getElementById('students-directory-list');
     if (!studentsList) return;
@@ -564,10 +573,17 @@ window.renderStudentDirectory = (filterGrade) => {
     row.innerHTML = `
       <div style="display: flex; align-items: center; gap: 12px;">
         <div class="avatar" style="background: rgba(0, 243, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); width: 35px; height: 35px; font-size: 1rem; font-weight: bold;">
+<<<<<<< HEAD
           ${student.firstName ? student.firstName.charAt(0).toUpperCase() : '?'}
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-start;">
           <h3 style="color: white; margin: 0; font-size: 0.95rem;">${student.firstName || 'Unknown'} ${student.surname || ''}</h3>
+=======
+          ${student.firstName.charAt(0).toUpperCase()}
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+          <h3 style="color: white; margin: 0; font-size: 0.95rem;">${student.firstName} ${student.surname || ''}</h3>
+>>>>>>> 1ddf7772947a3fc5b19b977140da8ef59b215a2d
           <span style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Registered User</span>
         </div>
       </div>
@@ -634,7 +650,11 @@ window.openAttendanceModal = (title, encodedAttendance) => {
     const row = document.createElement('div');
     row.style.cssText = `display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; border-left: 3px solid ${statusColor};`;
     row.innerHTML = `
+<<<<<<< HEAD
       <span style="color: white; font-weight: 500;">${student.firstName || 'Unknown'} ${student.surname || ''}</span>
+=======
+      <span style="color: white; font-weight: 500;">${student.firstName} ${student.surname || ''}</span>
+>>>>>>> 1ddf7772947a3fc5b19b977140da8ef59b215a2d
       <span style="color: ${statusColor}; font-size: 0.9rem;">${statusIcon} ${statusText}</span>
     `;
     container.appendChild(row);
