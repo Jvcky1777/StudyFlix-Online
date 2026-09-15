@@ -15,15 +15,21 @@ onAuthStateChanged(auth, async (user) => {
     
     if (topBarNameEl || userInitEl) {
       try {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDocSnap = await getDoc(userDocRef);
+        // Use 'let' so we can reassign it if we need to check the teachers collection
+        let userDocSnap = await getDoc(doc(db, "students", user.uid));
+        let isTeacher = false;
+
+        // If not in students, check teachers
+        if (!userDocSnap.exists()) {
+          userDocSnap = await getDoc(doc(db, "teachers", user.uid));
+          isTeacher = true; // We know they are a teacher if they are in this collection
+        }
 
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
-          const firstName = userData.first_name;
-          const isTeacher = userData.role === 'instructor';
+          const firstName = userData.firstName || userData.name || 'User';
 
-          // Security: Prevent students from accessing teacher pages (and vice versa)
+          // Security: Prevent cross-portal access
           const currentPath = window.location.pathname;
           if (isTeacher && currentPath.includes('/student/')) {
             window.location.href = '../teacher/teacher-dashboard.html';
@@ -35,7 +41,6 @@ onAuthStateChanged(auth, async (user) => {
           if (topBarNameEl) topBarNameEl.textContent = isTeacher ? `${firstName} (Instructor)` : firstName;
           if (userInitEl && firstName) userInitEl.textContent = firstName.charAt(0).toUpperCase();
 
-          // If the student dashboard has a specific welcome text, update it
           const studNameEl = document.getElementById('studName');
           if (studNameEl) studNameEl.textContent = firstName;
         }

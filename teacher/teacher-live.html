@@ -155,9 +155,9 @@
         // 1. FETCH IDENTITY -> CREATE ROOM & WIRE CHAT
         onAuthStateChanged(auth, async (user) => {
           if (user) {
-            const userDoc = await getDoc(doc(db, "users", user.uid));
+            const userDoc = await getDoc(doc(db, "teachers", user.uid));
             if (userDoc.exists()) {
-              const firstName = userDoc.data().first_name;
+              const firstName = userDoc.data().firstName || userDoc.data().name || 'Instructor';
               document.getElementById('local-name').textContent = firstName;
               document.getElementById('local-avatar').textContent = firstName.charAt(0).toUpperCase();
 

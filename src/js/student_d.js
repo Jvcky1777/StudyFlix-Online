@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Fetch the student's grade level for the stats box
   try {
-    const userRef = doc(db, 'users', currentUserId);
+    const userRef = doc(db, 'students', currentUserId);
     const userSnap = await getDoc(userRef);
     if (userSnap.exists()) {
       const gradeEl = document.getElementById('stat-grade');
@@ -267,7 +267,7 @@ window.toggleReminder = async (classId, className, scheduledTimestamp) => {
 
   if (btn.textContent.includes('Set Reminder')) {
     
-    // 👇 MEMORY FIX: Save the class ID
+    // 👇 Save the class ID
     if (!savedReminders.includes(classId)) {
       savedReminders.push(classId);
       localStorage.setItem('activeReminders', JSON.stringify(savedReminders));

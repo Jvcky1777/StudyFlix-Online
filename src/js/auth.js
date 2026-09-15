@@ -10,7 +10,8 @@ import {
 import { 
   doc, 
   setDoc, 
-  getDoc 
+  getDoc,
+  serverTimestamp
 } from 'firebase/firestore';
 
 // =======================================================================
@@ -22,44 +23,67 @@ if (registerForm) {
   registerForm.addEventListener('submit', async function(event) {
     event.preventDefault(); // Stop the page from refreshing
     
-    // 1. Read what the user typed in the HTML boxes
-    const firstName = document.getElementById('firstName').value;
-    const lastName = document.getElementById('lastName').value;
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const contactNumber = document.getElementById('contactNumber').value;
-    const grade = document.getElementById('grade').value;
-    const role = document.getElementById('role').value;
-    
+    const firstNameInput = document.getElementById('firstName').value.trim();
+    const lastNameInput = document.getElementById('lastName').value.trim();
+    const emailInput = document.getElementById('email').value.trim();
+    const passwordInput = document.getElementById('password').value;
+    const contactNumberInput = document.getElementById('contactNumber').value.trim();
+    const gradeInput = document.getElementById('grade').value;
+    const roleInput = document.getElementById('role').value;
+
+    if (roleInput !== 'student' && roleInput !== 'instructor') {
+      alert("Security Alert: Invalid role detected. Registration blocked.");
+      return; 
+    }
+
+    // StudyFlix requires a combined full name string
+    const fullName = `${firstNameInput} ${lastNameInput}`;
+
     try {
-      // 2. Create the secure password login via Firebase Authentication
-      // EXPLANATION: This talks to the `auth` service. If successful, it returns 
-      // a user object containing their unique UID.
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user; // This contains their secure unique ID (uid)
+      // 1. Create the secure password login via Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, emailInput, passwordInput);
+      const user = userCredential.user; 
 
-      // 3. Save their public profile details to the "users" collection
-      // EXPLANATION: This takes the UID generated above and creates a document 
-      // in the Firestore database (`db`) using that exact ID, linking their auth to their data.
-      await setDoc(doc(db, "users", user.uid), {
-        first_name: firstName,
-        last_name: lastName,
-        email: email,
-        contact_number: contactNumber,
-        grade: grade,
-        role: role
-      });
+      // 2. Save to the OFFICIAL StudyFlix collections
+      if (roleInput === 'instructor') {
+        
+        // TEACHER SCHEMA
+        await setDoc(doc(db, "teachers", user.uid), {
+          uid: user.uid,
+          firstName: firstNameInput,
+          surname: lastNameInput,
+          name: fullName,
+          email: emailInput,
+          phone: contactNumberInput,
+          role: 'instructor',
+          status: 'approved', // Auto-approve for testing
+          createdAt: serverTimestamp()
+        });
 
-      // 4. Send them to the correct folder based on what they selected
-      // EXPLANATION: JavaScript checks the dropdown value and routes the user.
-      if (role === 'instructor') {
         window.location.href = './teacher/teacher-dashboard.html'; 
+
       } else {
+
+        // STUDENT SCHEMA
+        await setDoc(doc(db, "students", user.uid), {
+          uid: user.uid,
+          firstName: firstNameInput,
+          surname: lastNameInput,
+          name: fullName,
+          email: emailInput,
+          phone: contactNumberInput,
+          grade: gradeInput,
+          status: 'approved', // Auto-approve for testing
+          subscription: 'trial', 
+          completedQuizzes: [],
+          marks: [],
+          createdAt: serverTimestamp()
+        });
+
         window.location.href = './student/dashboard.html';
       }
 
     } catch (error) {
-      // Catch duplicate emails, weak passwords, etc.
       console.error("Registration Error:", error);
       alert("Registration failed: " + error.message);
     }
@@ -73,10 +97,9 @@ const loginForm = document.getElementById('loginForm');
 
 if (loginForm) {
   loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault(); // Stop the page from refreshing
+    e.preventDefault(); 
 
-    // Read the email and password from the login HTML boxes
-    const email = document.getElementById('loginEmail').value;
+    const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
 
     try {
@@ -84,31 +107,36 @@ if (loginForm) {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Go to the "users" collection and fetch their profile document
-      // EXPLANATION: Now that we know they are who they say they are, we use 
-      // their UID to grab their full profile data out of the Firestore database.
-      const userDocRef = doc(db, "users", user.uid);
-      const userDocSnap = await getDoc(userDocRef);
+      // 2. Check the "students" collection first
+      const studentDocRef = doc(db, "students", user.uid);
+      const studentDocSnap = await getDoc(studentDocRef);
 
-      if (userDocSnap.exists()) {
-        // 3. Read the 'role' field from their database profile
-        const userData = userDocSnap.data();
-        const userRole = userData.role;
-
-        // 4. Route them based on their official database role
-        // EXPLANATION: This prevents a student from logging in and manually 
-        // trying to access the instructor dashboard. It checks the database directly.
-        if (userRole === 'instructor') {
-          window.location.href = './teacher/teacher-dashboard.html';
-        } else {
-          window.location.href = './student/dashboard.html';
+      if (studentDocSnap.exists()) {
+        const studentData = studentDocSnap.data();
+        
+        // Enforce the StudyFlix approval system
+        if (studentData.status === 'pending') {
+          alert("Your account is pending admin approval.");
+          return;
         }
-      } else {
-        alert("Account verified, but profile data is missing in the database.");
+
+        window.location.href = './student/dashboard.html';
+        return; 
       }
 
+      // 3. If not a student, check the "teachers" collection
+      const teacherDocRef = doc(db, "teachers", user.uid);
+      const teacherDocSnap = await getDoc(teacherDocRef);
+
+      if (teacherDocSnap.exists()) {
+        window.location.href = './teacher/teacher-dashboard.html';
+        return; 
+      } 
+      
+      // 4. Catch-all if they don't exist in either
+      alert("Account verified, but profile data is missing in the database.");
+      
     } catch (error) {
-      // Catch wrong passwords or invalid emails
       console.error("Login Error:", error);
       alert("Invalid email or password.");
     }
